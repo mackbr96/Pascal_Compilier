@@ -1,0 +1,12 @@
+program main(input, output);
+var x: integer;
+	function boo(a,b: real) : integer;
+		var x: integer;
+		begin
+			a := 3.0;
+			b := 3.0;
+			x := 40
+		end;
+begin
+x := boo(3.0)
+end.
