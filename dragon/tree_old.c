@@ -131,193 +131,6 @@ tree *emptyTree() {
 }
 
 
-int checkTypes(scope *top, tree* t) {
-	node *var_ptr;
-
-	switch(t -> type) {
-		case (INUM):
-		case (RNUM):
-		case (EMPTY):
-		case (BOOL):
-			return t->type;
-			break;
-		case (NOT):
-			if(checkTypes(top, t->leftNode) != BOOL) {
-				yyerror("'NOT' must take a boolean argument.");
-			}
-			return BOOL;
-			break;
-		case (ID):
-			var_ptr = searchScopeAll(top, t->attribute.sval);
-
-			if(var_ptr == NULL) {
-				fprintf(stderr, "ERROR variable %s undeclared\n on line:%d\n", t->attribute.sval, yylineno);
-				exit(0);
-			}
-			if(var_ptr -> type == FUNCTION) {
-				return var_ptr -> returnType;
-				break;
-			}
-			return var_ptr -> type;
-			break;
-
-		
-		
-		
-		case (RELOP):
-			if(checkTypes(top, t->leftNode) != checkTypes(top, t->rightNode)) {
-				fprintf(stderr, "Type mismatch expected %s but got %s on line:%d\n", typeToString(checkTypes(top, t->leftNode)), typeToString(checkTypes(top, t->rightNode)), yylineno);
-				exit(0);
-
-			}
-
-			return BOOL;
-			break;
-
-		case(MULOP):
-		case (ADDOP):
-			if(!strcmp(t->attribute.opval, "+") || !strcmp(t->attribute.opval, "-") ||
-			!strcmp(t->attribute.opval, "*") || !strcmp(t->attribute.opval, "/"))
-			{
-				sameTypes(top, t->leftNode, t->rightNode);
-				if(checkTypes(top, t->leftNode) == BOOL)
-				{
-					yyerror("Something wrong 1");
-					exit(0);
-				}
-				return checkTypes(top, t->leftNode);
-			}
-
-			else //using a boolean expression (AND or OR)
-			{
-				sameTypes(top, t->leftNode, t->rightNode);	
-				if(checkTypes(top, t->leftNode) != BOOL)
-				{
-					yyerror("Something wrong 2");
-					exit(0);
-				}
-				return BOOL;
-			}  
-			break;
-
-		case (PAROP):
-			var_ptr = searchScopeAll(top, t->leftNode->attribute.sval);
-
-			if(var_ptr == NULL) yyerror("Undeclared variable");
-
-			if(var_ptr -> type == PROCEDURE) yyerror("Procedures do not return a value");
-
-			if(var_ptr -> type != FUNCTION) yyerror(stringCat(t->leftNode->attribute.sval, " is not a function"));
-
-			//check args
-			return var_ptr->returnType;
-			break;
-
-
-		case (ARROP):
-			var_ptr = searchScopeAll(top, t-> leftNode->attribute.sval);
-
-			if( var_ptr == NULL) {
-				yyerror(stringCat(t->leftNode->attribute.sval, " :Undeclared"));
-			}
-
-			if(var_ptr->type != ARRAY) {
-				yyerror(stringCat(t->leftNode->attribute.sval, " Is not a array "));
-			}
-
-			if(checkTypes(top, t->rightNode) != INUM) {
-				yyerror(stringCat(t->rightNode->attribute.sval, " Index must be an integer type"));
-			}
-
-			return var_ptr->returnType;
-			break;
-
-		default:
-			fprintf(stderr, "Unexpected tree node type %d", t->type);
-			//yyerror("Unexpected Tree node type in checkType");
-	}
-}
-
-
-void sameTypes(scope* top, tree* left, tree* right) {
-	if(checkTypes(top, left) != checkTypes(top, right)) {
-
-		if(checkTypes(top, left) == PROCEDURE) {
-			fprintf(stderr, "Error %s is a 'Procedure' and should not return a value on line %d\n", left->attribute.sval, yylineno);
-			exit(0);
-		}
-
-		if(checkTypes(top, right) == PROCEDURE) {
-			fprintf(stderr, "Error %s is a 'Procedure' and should not return a value on line %d\n", right->attribute.sval, yylineno);
-			exit(0);
-		}
-
-		fprintf(stderr, "Type mismatch expected '%s' but got '%s'", typeToString(checkTypes(top, left)), typeToString(checkTypes(top, right)));
-		yyerror("Type mismatch");
-	}
-
-
-}
-
-
-void enforce_type(scope* top, tree* t, int type) {
-	if(checkTypes(top, t) != type)
-	{
-		fprintf(stderr, "Error: Type mismatch expected '%s' but got '%s' on line: %d\n",  typeToString(type),typeToString(checkTypes(top, t)), yylineno);
-		exit(0);
-	}
-}
-
-
-tree* checkForReturn(char* name, tree* t) {
-	if(t == NULL || t -> type == EMPTY) {
-		return NULL;
-	}
-
-	if(t -> type == ASSIGNOP) {
-		if(!strcmp(t->leftNode->attribute.sval, name)) { 
-			//found a return statement
-			return t;
-		} 
-	} else {
-		tree* left = checkForReturn(name, t -> leftNode);
-		tree* right = checkForReturn(name, t -> rightNode);
-
-		if(left != NULL) 
-			return left;
-		if(right != NULL) 
-			return right;
-	}
-	return NULL;
-}
-
-
-
-void checkFunction(scope* top, tree* head_ptr, tree* t) {
-
-    if(head_ptr -> type == FUNCTION) {
-        //int returnType = head_ptr -> returnType;
-        char* name = head_ptr->attribute.sval;
-		  tree* test = checkForReturn(name, t);
-			if(test == NULL) {
-				fprintf(stderr, "Error %s is a function and requires a return statement on line %d\n", name, yylineno);
-				exit(0);
-			}
-            //enforce_type(top, test, searchScopeAll(top, name)->returnType);
-			if(checkTypes(top, test-> rightNode) != searchScopeAll(top, name)->returnType) {
-				fprintf(stderr, "Error %s returns type %s but recivied type %s\n", name, typeToString(searchScopeAll(top, name)->returnType), typeToString(checkTypes(top, test-> rightNode)) );
-			}
-
-    }
-	if (head_ptr -> type == PROCEDURE) {
-		char* name = head_ptr->attribute.sval;
-		  tree* test = checkForReturn(name, t);
-			if(test != NULL) {
-				fprintf(stderr, "Error %s is a 'Procedure' and should not return a value on line %d\n", name, yylineno);
-				exit(0);
-			}
-	}
-}
 
 
 void printTree(tree *t, int spaces)
@@ -336,14 +149,14 @@ void printTree(tree *t, int spaces)
 		case INUM: 		fprintf(stderr, "[INUM %d]", t->attribute.ival); break;
 		case ID: 		fprintf(stderr, "[ID %s]", t->attribute.sval); break;
 		case RNUM: 		fprintf(stderr, "[RNUM %f]", t->attribute.fval); break;
-		case ADDOP: 	fprintf(stderr, "[ADDOP %s]", t->attribute.opval); break;
+		case ADDOP: 	fprintf(stderr, "[ADDOP %d]", t->attribute.ival); break;
 		case MULOP: 	fprintf(stderr, "[MULOP %s]", t->attribute.sval); break;
 		case RELOP: 	fprintf(stderr, "[RELOP %s]", t->attribute.opval); break;
 		case ASSIGNOP: 	fprintf(stderr, "[ASSIGNOP %s]", t->attribute.opval); break;
 		case NOT: 		fprintf(stderr, "[NOT %s]", t->attribute.opval); break;
 		case PROGRAM: 	fprintf(stderr, "[PROGRAM %s]", t->attribute.sval); break;
-		case FUNCTION: 	fprintf(stderr, "[FUNCTION %s]", t->attribute.sval); break;
-		case PROCEDURE: fprintf(stderr, "[PROCEDURE %s]", t->attribute.sval); break;
+		case FUNCTION: 	fprintf(stderr, "[FUNCTION %d]", t->attribute.ival); break;
+		case PROCEDURE: fprintf(stderr, "[PROCEDURE %d]", t->attribute.ival); break;
 		case VAR: 		fprintf(stderr, "[VAR %s]", t->attribute.sval); break;
 		case ARRAY: 	fprintf(stderr, "[ARRAY %s]", t->attribute.sval); break;
 		case DOTDOT: 	fprintf(stderr, "[DOTDOT %s]", t->attribute.sval); break;
@@ -378,4 +191,3 @@ void printTree(tree *t, int spaces)
 	printTree(t->rightNode, spaces+1);
 			
 }
-

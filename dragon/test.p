@@ -20,8 +20,7 @@ program main (input, output);
 		var z: integer;
 
 	begin
-		writeln(p + 13)
-
+		x := x + 3
 	end;
 
 begin

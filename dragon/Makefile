@@ -1,10 +1,16 @@
-CC = gcc
-FLAGS = -g
+
+FLAGS = -g -std=c99 -D_XOPEN_SOURCE=700 
 LEX = lex
 YACC = yacc
 
-mypc: y.tab.o lex.yy.o
-	$(CC) $(FLAGS) -o mypc y.tab.o lex.yy.o -ll -ly
+mypc: y.tab.o lex.yy.o node.o tree.o
+	$(CC) $(FLAGS) -o mypc y.tab.o node.o tree.o lex.yy.o -ll -ly
+
+
+node.o: node.c
+	$(CC) $(FLAGS) -c node.c
+tree.o: tree.c
+	$(CC) $(FLAGS) -c tree.c
 
 y.tab.o: y.tab.c
 	$(CC) $(FLAGS) -c y.tab.c

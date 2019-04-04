@@ -2,9 +2,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-#include "tree.c"
+#include "tree.h"
 #include "y.tab.h"
 #include "externs.h"
+#include "node.h"
+
+extern void updateVars(scope* , tree*, tree*);
+extern void makeFunction(scope*, tree*, tree* );
+extern void makeProgram(scope*, tree* ) ;
+extern void makeArray(scope* , char*, int, int, int );
+extern void makeVar(scope*, tree*, tree* );
+extern void makeProcedure(scope*, tree*);
 
 
 %}
@@ -20,11 +28,11 @@
 	tree *tval;
 }
 
-%token <pval> PROGRAM
+%token <opval> PROGRAM
 %token BBEGIN END ARRAY 
 
 %token <opval> ASSIGNOP
-
+%token <opval> BOOL
 %token <opval> RELOP EQ NQ LT LE GT GE
 
 %token  PLUS MINUS OR
@@ -33,7 +41,7 @@
 %token <opval> NOT
 %token <sval> ID
 %token <ival> INUM 
-%token <sval> RNUM
+%token <fval> RNUM
 %token <sval> WHILE
 %token <sval> IF
 %token THEN ELSE  DO FOR
@@ -48,7 +56,7 @@
 %token <sval> INTEGER
 %token <sval> REAL
 %token <sval> VAR
-%token <ival> ADDOP
+%token <opval> ADDOP
 
 
 
@@ -85,7 +93,11 @@
 
 start
 	: program
-		{ printTree($1, 0); }
+		{ 
+			print_scope(top_scope);
+			printTree($1, 0);
+			fprintf(stderr, "\n");
+		}
 	;
 
 
@@ -96,12 +108,18 @@ program
 	compound_statement
 	'.'
 	{
+		makeProgram(top_scope, $2);
+		makeVar(top_scope, $4, strTree(INUM, $1, emptyTree(), emptyTree()));	
+		
 		$$ = strTree(PROGRAM, "head body",
 					opTree(PAROP, "()", $2, $4),
-					strTree(PROGRAM, "decls compound_stmt",$7,
-						strTree(PROGRAM, "decls sub_decls", $9, $8)
+					strTree(PROGRAM, "decls compound_stmt",
+						strTree(PROGRAM, "decls sub_decls", $7, $8), $9 
 					)
 				);
+
+
+		
 	}
 	;
 
@@ -116,23 +134,27 @@ identifier_list
 
 declarations
 	: declarations VAR identifier_list ':' type ';'
-		{$$ = opTree(LISTOP, ":", opTree(VAR, $2, $1, $3), $5);}
+		{
+			makeVar(top_scope, $3, $5);
+			$$ = opTree(LISTOP, ":", opTree(VAR, $2, $1, $3), $5);
+		}
+
 	| /* EMPTY */
 		{ $$ = emptyTree();}
 	;
 
 type
 	: standard_type
-		{ $$ = $$ = $1;}
+		{ $$ = $1;}
 	| ARRAY '[' inum DOTDOT inum ']' OF standard_type
-		{$$ = strTree(ARROP, "array range", opTree(DOTDOT, $4, $3, $5), $7); }
+		{ $$ = strTree(ARRAY, "array range", opTree(DOTDOT, $4, $3, $5), $8); }
 	;
 
 standard_type
 	: INTEGER
-		{$$ = strTree(INTEGER, $1, emptyTree(), emptyTree());}
+		{$$ = strTree(INUM, $1, emptyTree(), emptyTree());}
 	| REAL
-		{ $$ = strTree(REAL, $1, emptyTree(), emptyTree());}
+		{ $$ = strTree(RNUM, $1, emptyTree(), emptyTree());}
 	;
 
 subprogram_declarations
@@ -144,35 +166,58 @@ subprogram_declarations
 
 subprogram_declaration
 	: subprogram_head declarations subprogram_declarations compound_statement
-		{$$ = opTree(LISTOP, "_", $1, 
+		{
+
+			checkFunction(top_scope, $1, $4);
+			//check the function for return statements here
+			$$ = opTree(LISTOP, "_", $1, 
 					opTree(LISTOP, "_", $2, 
 						opTree(LISTOP, "_", $3, $4)
 					)
-				 );}
-	| {fprintf(stderr,"pop_current_scope()");}
-		{$$ =emptyTree();}
+				 );
+				top_scope = pop_scope(top_scope);
+		}
+	| 
+		{
+			$$ =emptyTree();
+		}
 	;
 
 subprogram_head
-	: FUNCTION id { fprintf(stderr, "push_new_scope()"); } arguments ':' standard_type ';'
-		{ $$ = intTree(FUNCTION, $1, $2, $3 ); }
-	| PROCEDURE id arguments ';'
-		{ $$ = intTree(PROCEDURE, $1, $2, $3);}
-
+	: FUNCTION id { tmp = top_scope; top_scope = push_scope(top_scope);} arguments ':' standard_type ';'
+		{
+			makeFunction(tmp, $2, $6); 
+			$$ = strTree(FUNCTION, $2->attribute.sval, $2, $4 ); 
+		}
+	| PROCEDURE id { tmp = top_scope; top_scope = push_scope(top_scope);   } arguments ';'
+		{
+			
+			makeProcedure(tmp, $2);
+			$$ = strTree(PROCEDURE, $2->attribute.sval, $2, $4);
+		}
 	;
 
 arguments 
 	: '(' parameter_list ')'
-		{$$ = $2;}
+		{
+			//makeParms(top_scope, $2);
+			$$ = $2;
+		}
 	|
 		{ $$ = emptyTree();}
 	;
 
 parameter_list
 	: identifier_list ':' type
-		{$$ = opTree(LISTOP, ":", $1, $3);}
+		{
+			makeVar(top_scope, $1, $3);
+			$$ = opTree(LISTOP, ":", $1, $3);
+		}
 	| parameter_list ';' identifier_list ':' type
-		{ $$ = opTree(LISTOP, ";", $1, opTree(LISTOP, ":", $3, $5));}
+		{
+			makeVar(top_scope, $3, $5); 
+			$$ = opTree(LISTOP, ";", $1, opTree(LISTOP, ":", $3, $5));
+		}
 	;
 
 
@@ -198,33 +243,64 @@ statement_list
 
 statement
 	: variable ASSIGNOP expression
-		{ $$ = opTree(ASSIGNOP, "Assign", $1, $3); }
+		{
+			sameTypes(top_scope, $1, $3);
+			$$ = opTree(ASSIGNOP, "Assign", $1, $3); 
+		}
 	| procedure_statement
-		{$$ = $1;}
+		{
+			$$ = $1;
+		}
 	| compound_statement
 		{$$ = $1;}
 	| IF expression THEN statement
-		{$$ = strTree(IF, "If-Then", $2, $4); }
+		{
+			$$ = strTree(IF, "If-Then", $2, $4); 
+			enforce_type(top_scope, $2, BOOL);
+		}
 		
 	| IF expression THEN statement ELSE statement
-		{ $$ = strTree(IF, "if then-else", $2, strTree(IF, "then else", $4, $6)); }
-	| WHILE expression DO expression
-		{$$ = strTree(WHILE, "while do", $2, $4);}
-	| FOR declaration ';' expression ';' DO expression
+		{
+			$$ = strTree(IF, "if then-else", $2, strTree(IF, "then else", $4, $6)); 
+			enforce_type(top_scope, $2, BOOL);
+		}
+	| WHILE expression DO statement
+		{
+			$$ = strTree(WHILE, "while do", $2, $4);
+			enforce_type(top_scope, $2, BOOL);	
+		}
+	| FOR variable ASSIGNOP expression TO expression DO statement
+		{
+			$$ = strTree(FOR, "for",
+					opTree(ASSIGNOP, $3, $2, $4),
+					strTree(TO, "to do", $6, $8));
+		}
 	;
 
 variable
 	: id 
-		{$$ = $1;}
+		{
+			$$ = $1;
+			checkID(top_scope, $1->attribute.sval);
+		}
 	| id '[' expression ']'
-		{$$ = opTree(ARROP, "[]", $1, $3);}
+		{
+			$$ = opTree(ARROP, "[]", $1, $3);
+			checkID(top_scope, $1->attribute.sval); 
+		}
 	;
 
 procedure_statement
 	: id 
-		{ $$ = $1;}
+		{ 
+			$$ = $1;
+			checkID(top_scope, $1->attribute.sval);
+		}
 	| id '('  expression_list ')'
-		{ $$ = opTree(PAROP, "()", $1, $3);}
+		{ 
+			$$ = opTree(PAROP, "()", $1, $3);
+			checkID(top_scope, $1->attribute.sval);
+		}
 	;
 
 expression_list
@@ -236,9 +312,17 @@ expression_list
 
 expression
 	: simple_expression
-		{$$ = $1;}
+		{
+			tree* t = $1;
+			checkTypes(top_scope, t);
+			$$ = t;
+		}
 	| simple_expression RELOP simple_expression 
-		{ $$ = opTree(RELOP, "simple expression", $1, $3);}
+		{ 
+			tree* t = opTree(RELOP, $2, $1, $3);
+			checkTypes(top_scope, t);
+			$$ = t;
+		}
 	;
 
 simple_expression
@@ -247,7 +331,7 @@ simple_expression
 	| ADDOP term
 		{$$ = opTree(ADDOP, $1, intTree(INUM, 0, emptyTree(), emptyTree()), $2);}
 	| simple_expression ADDOP term
-		{	$$ = opTree(ADDOP, "Simple expression", $1, $3)	;}
+		{	$$ = opTree(ADDOP, $2, $1, $3)	;}
 	;
 
 term
@@ -259,12 +343,19 @@ term
 
 factor
 	: id
-		{ $$ = $1; }
+		{
+			$$ = $1; 
+			checkID(top_scope, $1->attribute.sval); 
+		}
 	| id '[' expression ']'
-		{ $$ = opTree(ARROP, "[]", $1, $3); }
+		{ 
+			$$ = opTree(ARROP, "[]", $1, $3); 
+			checkID(top_scope, $1->attribute.sval);
+		}
 	| id '(' expression_list ')'
 		{
 			$$ = opTree(PAROP, "()", $1, $3);
+			checkID(top_scope, $1->attribute.sval); 
 		}
 	| inum
 		{ $$ = $1; }
@@ -273,13 +364,16 @@ factor
 	| '(' expression ')'
 		{ $$ = $2; }
 	| NOT factor
-		{ $$ = opTree(NOT, $1, $2, emptyTree()); }
+		{ $$ = opTree(NOT, "NOT", $2, emptyTree()); }
 		
-sign
+ { /*sign
 	: '+'
+		{
+	
+		}
 	| '-'
-	;
-
+	;*/
+ }
 id
 	: ID
 		 { $$ = strTree(ID, $1, emptyTree(), emptyTree()); }
@@ -291,22 +385,25 @@ inum
 	;
 rnum
 	: RNUM
-		{ $$ = intTree(RNUM, $1, emptyTree(), emptyTree()); }
+		{ $$ = fTree(RNUM, $1, emptyTree(), emptyTree()); }
 	;
 
 
 %%
 
+scope *top_scope;
+scope* tmp;
 int main() {
-
+	top_scope = mkscope();
 	// tree *t = intTree(ADDOP, 4, emptyTree(), emptyTree());
 	// tree *y = intTree(ADDOP, 5, emptyTree(), emptyTree());
 	// tree *r = intTree(ADDOP, 6, t, y);
 	// printTree(r, 0);
 	yyparse();
 
-}
+	//print_scope(top_scope);
 
+}
 
 
 

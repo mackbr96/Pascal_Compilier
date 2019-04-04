@@ -25,3 +25,32 @@ Node* rootNode(char* id_, int type_, int lineNum_, int value_) {
 	n -> value = value_;
 	return n;
 }
+
+
+
+
+
+void makeVars(tree *id, tree *type) {
+	int varType = 0;
+	int varClass = 0;
+	int start_idx = 0;
+	int stop_idx = 0;
+
+
+	if(type->type == ARRAY) {
+
+	} else {
+		varClass = VAR;
+		varType  = type->type;
+	}
+
+	while(id->type == LISTOP) {
+		
+
+
+	}
+
+
+
+
+}

@@ -1,6 +1,7 @@
 program main(input, output);
-var x: integer;
-	function boo(a,b: real) : integer;
+var x : integer;
+var z : array[1..6] of  integer;
+	procedure boo(a,b: real);
 		var x: integer;
 		begin
 			a := 3.0;
@@ -8,5 +9,7 @@ var x: integer;
 			x := 40
 		end;
 begin
-x := boo(3.0)
+x := boo(11);
+z[1] := 3
+
 end.
