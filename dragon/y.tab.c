@@ -24,16 +24,19 @@ static const char yysccsid[] = "@(#)yaccpar	1.9 (Berkeley) 02/21/93";
 #include "y.tab.h"
 #include "externs.h"
 #include "node.h"
+#include "types.h"
+
 
 extern void updateVars(scope* , tree*, tree*);
-extern void makeFunction(scope*, tree*, tree* );
-extern void makeProgram(scope*, tree* ) ;
+extern void makeFunction(scope*, tree*);
+extern void updateFunction(scope*, tree*, tree* , int);
+extern void makeProgram(scope*, tree* );
 extern void makeArray(scope* , char*, int, int, int );
-extern void makeVar(scope*, tree*, tree* );
 extern void makeProcedure(scope*, tree*);
-
-
-#line 22 "pc.y"
+extern void updateProcedure(scope*, tree*, int);
+extern void makeVar(scope*, tree*, tree* );
+extern void makeParms(scope*, tree*, tree* );
+#line 25 "pc.y"
 #ifdef YYSTYPE
 #undef  YYSTYPE_IS_DECLARED
 #define YYSTYPE_IS_DECLARED 1
@@ -49,7 +52,7 @@ typedef union {
 	tree *tval;
 } YYSTYPE;
 #endif /* !YYSTYPE_IS_DECLARED */
-#line 52 "y.tab.c"
+#line 55 "y.tab.c"
 
 /* compatibility with bison */
 #ifdef YYPARSE_PARAM
@@ -384,7 +387,7 @@ typedef struct {
 } YYSTACKDATA;
 /* variables for the parser stack */
 static YYSTACKDATA yystack;
-#line 393 "pc.y"
+#line 403 "pc.y"
 
 scope *top_scope;
 scope* tmp;
@@ -404,7 +407,7 @@ int main() {
 
 
 
-#line 407 "y.tab.c"
+#line 410 "y.tab.c"
 
 #if YYDEBUG
 #include <stdio.h>		/* needed for printf */
@@ -611,7 +614,7 @@ yyreduce:
     switch (yyn)
     {
 case 1:
-#line 96 "pc.y"
+#line 99 "pc.y"
 	{ 
 			print_scope(top_scope);
 			printTree(yystack.l_mark[0].tval, 0);
@@ -619,7 +622,7 @@ case 1:
 		}
 break;
 case 2:
-#line 110 "pc.y"
+#line 113 "pc.y"
 	{
 		makeProgram(top_scope, yystack.l_mark[-8].tval);
 		makeVar(top_scope, yystack.l_mark[-6].tval, strTree(INUM, yystack.l_mark[-9].opval, emptyTree(), emptyTree()));	
@@ -636,50 +639,50 @@ case 2:
 	}
 break;
 case 3:
-#line 128 "pc.y"
+#line 131 "pc.y"
 	{yyval.tval = opTree(LISTOP, ",", yystack.l_mark[0].tval, emptyTree());}
 break;
 case 4:
-#line 130 "pc.y"
+#line 133 "pc.y"
 	{ yyval.tval = opTree(LISTOP, ",", yystack.l_mark[-2].tval, yystack.l_mark[0].tval);}
 break;
 case 5:
-#line 137 "pc.y"
+#line 140 "pc.y"
 	{
 			makeVar(top_scope, yystack.l_mark[-3].tval, yystack.l_mark[-1].tval);
 			yyval.tval = opTree(LISTOP, ":", opTree(VAR, yystack.l_mark[-4].sval, yystack.l_mark[-5].tval, yystack.l_mark[-3].tval), yystack.l_mark[-1].tval);
 		}
 break;
 case 6:
-#line 143 "pc.y"
+#line 146 "pc.y"
 	{ yyval.tval = emptyTree();}
 break;
 case 7:
-#line 148 "pc.y"
+#line 151 "pc.y"
 	{ yyval.tval = yystack.l_mark[0].tval;}
 break;
 case 8:
-#line 150 "pc.y"
+#line 153 "pc.y"
 	{ yyval.tval = strTree(ARRAY, "array range", opTree(DOTDOT, yystack.l_mark[-4].sval, yystack.l_mark[-5].tval, yystack.l_mark[-3].tval), yystack.l_mark[0].tval); }
 break;
 case 9:
-#line 155 "pc.y"
-	{yyval.tval = strTree(INUM, yystack.l_mark[0].sval, emptyTree(), emptyTree());}
+#line 158 "pc.y"
+	{yyval.tval = strTree(INUM, "INUM TYPE", emptyTree(), emptyTree());}
 break;
 case 10:
-#line 157 "pc.y"
-	{ yyval.tval = strTree(RNUM, yystack.l_mark[0].sval, emptyTree(), emptyTree());}
+#line 160 "pc.y"
+	{ yyval.tval = strTree(RNUM, "RNUM TYPE", emptyTree(), emptyTree());}
 break;
 case 11:
-#line 162 "pc.y"
+#line 165 "pc.y"
 	{yyval.tval = opTree(LISTOP, "_", yystack.l_mark[-2].tval, yystack.l_mark[-1].tval);}
 break;
 case 12:
-#line 164 "pc.y"
+#line 167 "pc.y"
 	{yyval.tval = emptyTree();}
 break;
 case 13:
-#line 169 "pc.y"
+#line 172 "pc.y"
 	{
 
 			checkFunction(top_scope, yystack.l_mark[-3].tval, yystack.l_mark[0].tval);
@@ -693,119 +696,121 @@ case 13:
 		}
 break;
 case 14:
-#line 181 "pc.y"
+#line 184 "pc.y"
 	{
 			yyval.tval =emptyTree();
 		}
 break;
 case 15:
-#line 187 "pc.y"
-	{ tmp = top_scope; top_scope = push_scope(top_scope);}
+#line 190 "pc.y"
+	{ tmp = top_scope; top_scope = push_scope(top_scope, yystack.l_mark[0].tval->attribute.sval, FUNCTION); makeFunction(tmp, yystack.l_mark[0].tval); }
 break;
 case 16:
-#line 188 "pc.y"
+#line 191 "pc.y"
 	{
-			makeFunction(tmp, yystack.l_mark[-5].tval, yystack.l_mark[-1].tval); 
+			updateFunction(tmp, yystack.l_mark[-5].tval, yystack.l_mark[-1].tval, countArgs(top_scope, yystack.l_mark[-3].tval, 0));
+			/*addArgs(top_scope, $2->attribute.sval, $4); */
 			yyval.tval = strTree(FUNCTION, yystack.l_mark[-5].tval->attribute.sval, yystack.l_mark[-5].tval, yystack.l_mark[-3].tval ); 
 		}
 break;
 case 17:
-#line 192 "pc.y"
-	{ tmp = top_scope; top_scope = push_scope(top_scope);   }
+#line 196 "pc.y"
+	{ tmp = top_scope; top_scope = push_scope(top_scope, yystack.l_mark[0].tval->attribute.sval, PROCEDURE); makeProcedure(tmp, yystack.l_mark[0].tval);  }
 break;
 case 18:
-#line 193 "pc.y"
+#line 197 "pc.y"
 	{
 			
-			makeProcedure(tmp, yystack.l_mark[-3].tval);
+			updateProcedure(tmp, yystack.l_mark[-3].tval, countArgs(top_scope, yystack.l_mark[-1].tval, 0));
 			yyval.tval = strTree(PROCEDURE, yystack.l_mark[-3].tval->attribute.sval, yystack.l_mark[-3].tval, yystack.l_mark[-1].tval);
 		}
 break;
 case 19:
-#line 202 "pc.y"
+#line 206 "pc.y"
 	{
 			/*makeParms(top_scope, $2);*/
 			yyval.tval = yystack.l_mark[-1].tval;
 		}
 break;
 case 20:
-#line 207 "pc.y"
+#line 211 "pc.y"
 	{ yyval.tval = emptyTree();}
 break;
 case 21:
-#line 212 "pc.y"
+#line 216 "pc.y"
 	{
-			makeVar(top_scope, yystack.l_mark[-2].tval, yystack.l_mark[0].tval);
+			makeParms(top_scope, yystack.l_mark[-2].tval, yystack.l_mark[0].tval);
 			yyval.tval = opTree(LISTOP, ":", yystack.l_mark[-2].tval, yystack.l_mark[0].tval);
 		}
 break;
 case 22:
-#line 217 "pc.y"
+#line 221 "pc.y"
 	{
-			makeVar(top_scope, yystack.l_mark[-2].tval, yystack.l_mark[0].tval); 
+			makeParms(top_scope, yystack.l_mark[-2].tval, yystack.l_mark[0].tval); 
 			yyval.tval = opTree(LISTOP, ";", yystack.l_mark[-4].tval, opTree(LISTOP, ":", yystack.l_mark[-2].tval, yystack.l_mark[0].tval));
 		}
 break;
 case 23:
-#line 227 "pc.y"
+#line 230 "pc.y"
 	{ yyval.tval = strTree(BBEGIN, "Begin", yystack.l_mark[-1].tval, emptyTree()); }
 break;
 case 24:
-#line 232 "pc.y"
+#line 235 "pc.y"
 	{ yyval.tval = yystack.l_mark[0].tval;}
 break;
 case 25:
-#line 234 "pc.y"
+#line 237 "pc.y"
 	{yyval.tval = emptyTree();}
 break;
 case 26:
-#line 239 "pc.y"
+#line 242 "pc.y"
 	{ yyval.tval = yystack.l_mark[0].tval;}
 break;
 case 27:
-#line 241 "pc.y"
+#line 244 "pc.y"
 	{ yyval.tval = opTree(LISTOP, ";", yystack.l_mark[-2].tval, yystack.l_mark[0].tval);}
 break;
 case 28:
-#line 246 "pc.y"
+#line 249 "pc.y"
 	{
 			sameTypes(top_scope, yystack.l_mark[-2].tval, yystack.l_mark[0].tval);
+			checkLocal(top_scope, yystack.l_mark[-2].tval);
 			yyval.tval = opTree(ASSIGNOP, "Assign", yystack.l_mark[-2].tval, yystack.l_mark[0].tval); 
 		}
 break;
 case 29:
-#line 251 "pc.y"
+#line 255 "pc.y"
 	{
 			yyval.tval = yystack.l_mark[0].tval;
 		}
 break;
 case 30:
-#line 255 "pc.y"
+#line 259 "pc.y"
 	{yyval.tval = yystack.l_mark[0].tval;}
 break;
 case 31:
-#line 257 "pc.y"
+#line 261 "pc.y"
 	{
 			yyval.tval = strTree(IF, "If-Then", yystack.l_mark[-2].tval, yystack.l_mark[0].tval); 
 			enforce_type(top_scope, yystack.l_mark[-2].tval, BOOL);
 		}
 break;
 case 32:
-#line 263 "pc.y"
+#line 267 "pc.y"
 	{
 			yyval.tval = strTree(IF, "if then-else", yystack.l_mark[-4].tval, strTree(IF, "then else", yystack.l_mark[-2].tval, yystack.l_mark[0].tval)); 
 			enforce_type(top_scope, yystack.l_mark[-4].tval, BOOL);
 		}
 break;
 case 33:
-#line 268 "pc.y"
+#line 272 "pc.y"
 	{
 			yyval.tval = strTree(WHILE, "while do", yystack.l_mark[-2].tval, yystack.l_mark[0].tval);
 			enforce_type(top_scope, yystack.l_mark[-2].tval, BOOL);	
 		}
 break;
 case 34:
-#line 273 "pc.y"
+#line 277 "pc.y"
 	{
 			yyval.tval = strTree(FOR, "for",
 					opTree(ASSIGNOP, yystack.l_mark[-5].opval, yystack.l_mark[-6].tval, yystack.l_mark[-4].tval),
@@ -813,43 +818,45 @@ case 34:
 		}
 break;
 case 35:
-#line 282 "pc.y"
+#line 286 "pc.y"
 	{
 			yyval.tval = yystack.l_mark[0].tval;
 			checkID(top_scope, yystack.l_mark[0].tval->attribute.sval);
 		}
 break;
 case 36:
-#line 287 "pc.y"
+#line 291 "pc.y"
 	{
 			yyval.tval = opTree(ARROP, "[]", yystack.l_mark[-3].tval, yystack.l_mark[-1].tval);
 			checkID(top_scope, yystack.l_mark[-3].tval->attribute.sval); 
 		}
 break;
 case 37:
-#line 295 "pc.y"
+#line 299 "pc.y"
 	{ 
 			yyval.tval = yystack.l_mark[0].tval;
 			checkID(top_scope, yystack.l_mark[0].tval->attribute.sval);
 		}
 break;
 case 38:
-#line 300 "pc.y"
-	{ 
+#line 304 "pc.y"
+	{
+
+			checkArgs(top_scope, yystack.l_mark[-3].tval, yystack.l_mark[-1].tval);
 			yyval.tval = opTree(PAROP, "()", yystack.l_mark[-3].tval, yystack.l_mark[-1].tval);
 			checkID(top_scope, yystack.l_mark[-3].tval->attribute.sval);
 		}
 break;
 case 39:
-#line 308 "pc.y"
+#line 314 "pc.y"
 	{yyval.tval = yystack.l_mark[0].tval;}
 break;
 case 40:
-#line 310 "pc.y"
+#line 316 "pc.y"
 	{ yyval.tval = opTree(LISTOP, ",", yystack.l_mark[-2].tval, yystack.l_mark[0].tval); }
 break;
 case 41:
-#line 315 "pc.y"
+#line 321 "pc.y"
 	{
 			tree* t = yystack.l_mark[0].tval;
 			checkTypes(top_scope, t);
@@ -857,7 +864,7 @@ case 41:
 		}
 break;
 case 42:
-#line 321 "pc.y"
+#line 327 "pc.y"
 	{ 
 			tree* t = opTree(RELOP, yystack.l_mark[-1].opval, yystack.l_mark[-2].tval, yystack.l_mark[0].tval);
 			checkTypes(top_scope, t);
@@ -865,64 +872,68 @@ case 42:
 		}
 break;
 case 43:
-#line 330 "pc.y"
+#line 336 "pc.y"
 	{yyval.tval = yystack.l_mark[0].tval;}
 break;
 case 44:
-#line 332 "pc.y"
+#line 338 "pc.y"
 	{yyval.tval = opTree(ADDOP, yystack.l_mark[-1].opval, intTree(INUM, 0, emptyTree(), emptyTree()), yystack.l_mark[0].tval);}
 break;
 case 45:
-#line 334 "pc.y"
+#line 340 "pc.y"
 	{	yyval.tval = opTree(ADDOP, yystack.l_mark[-1].opval, yystack.l_mark[-2].tval, yystack.l_mark[0].tval)	;}
 break;
 case 46:
-#line 339 "pc.y"
+#line 345 "pc.y"
 	{yyval.tval = yystack.l_mark[0].tval;}
 break;
 case 47:
-#line 341 "pc.y"
+#line 347 "pc.y"
 	{ yyval.tval = opTree(MULOP, yystack.l_mark[-1].sval, yystack.l_mark[-2].tval, yystack.l_mark[0].tval); }
 break;
 case 48:
-#line 346 "pc.y"
+#line 352 "pc.y"
 	{
 			yyval.tval = yystack.l_mark[0].tval; 
 			checkID(top_scope, yystack.l_mark[0].tval->attribute.sval); 
 		}
 break;
 case 49:
-#line 351 "pc.y"
+#line 357 "pc.y"
 	{ 
 			yyval.tval = opTree(ARROP, "[]", yystack.l_mark[-3].tval, yystack.l_mark[-1].tval); 
 			checkID(top_scope, yystack.l_mark[-3].tval->attribute.sval);
 		}
 break;
 case 50:
-#line 356 "pc.y"
+#line 362 "pc.y"
 	{
+			checkArgs(top_scope, yystack.l_mark[-3].tval, yystack.l_mark[-1].tval);
+			checkID(top_scope, yystack.l_mark[-3].tval->attribute.sval);
 			yyval.tval = opTree(PAROP, "()", yystack.l_mark[-3].tval, yystack.l_mark[-1].tval);
-			checkID(top_scope, yystack.l_mark[-3].tval->attribute.sval); 
+			 
 		}
 break;
 case 51:
-#line 361 "pc.y"
+#line 369 "pc.y"
 	{ yyval.tval = yystack.l_mark[0].tval; }
 break;
 case 52:
-#line 363 "pc.y"
+#line 371 "pc.y"
 	{ yyval.tval = yystack.l_mark[0].tval; }
 break;
 case 53:
-#line 365 "pc.y"
-	{ yyval.tval = yystack.l_mark[-1].tval; }
+#line 373 "pc.y"
+	{ 	
+			yyval.tval = yystack.l_mark[-1].tval; 
+		}
 break;
 case 54:
-#line 367 "pc.y"
+#line 377 "pc.y"
 	{ yyval.tval = opTree(NOT, "NOT", yystack.l_mark[0].tval, emptyTree()); }
 break;
 case 55:
-#line 369 "pc.y"
+#line 379 "pc.y"
 	{ /*sign
 	: '+'
 		{
@@ -933,18 +944,18 @@ case 55:
  }
 break;
 case 56:
-#line 379 "pc.y"
+#line 389 "pc.y"
 	{ yyval.tval = strTree(ID, yystack.l_mark[0].sval, emptyTree(), emptyTree()); }
 break;
 case 57:
-#line 384 "pc.y"
+#line 394 "pc.y"
 	{ yyval.tval = intTree(INUM, yystack.l_mark[0].ival, emptyTree(), emptyTree()); }
 break;
 case 58:
-#line 388 "pc.y"
+#line 398 "pc.y"
 	{ yyval.tval = fTree(RNUM, yystack.l_mark[0].fval, emptyTree(), emptyTree()); }
 break;
-#line 947 "y.tab.c"
+#line 958 "y.tab.c"
     }
     yystack.s_mark -= yym;
     yystate = *yystack.s_mark;

@@ -21,7 +21,6 @@ tree *intTree(int type, int ival, tree *leftNode, tree *rightNode) {
 	t -> leftNode = leftNode;
 	t -> rightNode = rightNode;
 	t -> attribute.ival = ival;
-
 	if(DEBUG == 1)
 	{
 		fprintf(stderr, "\nN: %p\t\t%d", t, t->attribute.ival);
@@ -41,7 +40,7 @@ tree *fTree(int type, float fval, tree *leftNode, tree *rightNode) {
 	t -> leftNode = leftNode;
 	t -> rightNode = rightNode;
 	t -> attribute.fval = fval;
-
+	t->attribute.sval = NULL;
 	if(DEBUG == 1)
 	{
 		fprintf(stderr, "\nN: %p\t\t%f", t, t->attribute.fval);
@@ -61,7 +60,6 @@ tree *strTree(int type, char* sval, tree *leftNode, tree *rightNode) {
 	t -> leftNode = leftNode;
 	t -> rightNode = rightNode;
 	t -> attribute.sval = strdup(sval);
-
 	if(DEBUG == 1)
 	{
 		fprintf(stderr, "\nN: %p\t\t%s", t, t->attribute.sval);
@@ -154,7 +152,7 @@ int checkTypes(scope *top, tree* t) {
 				fprintf(stderr, "ERROR variable %s undeclared\n on line:%d\n", t->attribute.sval, yylineno);
 				exit(0);
 			}
-			if(var_ptr -> type == FUNCTION) {
+			if(var_ptr -> type == FUNCTION ) {
 				return var_ptr -> returnType;
 				break;
 			}
@@ -232,6 +230,10 @@ int checkTypes(scope *top, tree* t) {
 			return var_ptr->returnType;
 			break;
 
+		// case(LISTOP):
+		// 	return checkTypes(top, t->leftNode);
+		// 	break;
+
 		default:
 			fprintf(stderr, "Unexpected tree node type %d", t->type);
 			//yyerror("Unexpected Tree node type in checkType");
@@ -258,7 +260,12 @@ void sameTypes(scope* top, tree* left, tree* right) {
 
 
 }
-
+void checkLocal(scope* top, tree* t) {
+	 if(searchScope(top, t->attribute.sval) == NULL && strcmp(t->attribute.sval,top->name) && top -> type == FUNCTION) {
+		 fprintf(stderr, "Error cannot change non local variable %s in %s on line %d\n", t->attribute.sval, top->name, yylineno);
+		exit(0);
+	 }
+ }
 
 void enforce_type(scope* top, tree* t, int type) {
 	if(checkTypes(top, t) != type)
@@ -319,6 +326,87 @@ void checkFunction(scope* top, tree* head_ptr, tree* t) {
 	}
 }
 
+
+int countArgs(scope* top, tree* t, int args) {
+	if(t == NULL || t -> type == EMPTY) 
+		return args;
+		
+	//if(t -> type  == ID || (t -> type == INUM && t->attribute.sval == NULL)  || (t-> type == RNUM && t->attribute.sval == NULL) || t -> type == ARROP ) {
+	if(t->type != LISTOP && (checkTypes(top, t) == ID || (checkTypes(top, t) == INUM && t->attribute.ival != -9191) || checkTypes(top, t) == RNUM )) {
+		args ++;
+	}
+	
+	if(t -> leftNode != NULL && t -> leftNode -> type != EMPTY && t -> type != ARROP && t->type != ADDOP) {
+		args += countArgs(top, t->leftNode, 0);
+	}
+
+	if(t -> rightNode != NULL && t -> rightNode -> type != EMPTY && t -> type != ARROP && t->type != ADDOP) {
+		args += countArgs(top, t->rightNode, 0);
+	}
+
+	return args;
+}
+
+
+void checkArgs(scope* top,tree* fnc_ptr, tree* args_ptr) {
+	node* fnc_node = searchScopeAll(top, fnc_ptr -> attribute.sval);
+	int fnc_args = fnc_node->args;
+	fprintf(stderr, "The number of args: %d\n", fnc_args);
+	if(countArgs(top, args_ptr, 0) != fnc_args) {
+		fprintf(stderr, "Error %s requires %d arguments given %d on line %d\n", fnc_node->name, fnc_node->args, countArgs(top, args_ptr, 0), yylineno);
+		//exit(0);
+	}
+	tree* left = args_ptr -> leftNode;
+	tree* right = args_ptr -> rightNode;
+	types* t = findTypes(top, args_ptr);
+
+	while(fnc_node -> arg_types -> type != 0 && t -> type != 0) {
+		if(fnc_node -> arg_types -> type != t->type) {
+			fprintf(stderr, "ERROR wrong argument types for %s %s requires %s but recived %s on line %d\n", typeToString(fnc_node->type), fnc_node->name, typeToString(fnc_node -> arg_types -> type), typeToString(t->type), yylineno);
+			//exit(0);
+		break;
+		}
+		else {
+			fnc_node -> arg_types = fnc_node -> arg_types -> next;
+			t = t -> next;
+		}
+	}
+
+
+}
+
+types* findTypes(scope* top, tree* arg_ptr) {
+	types* t;
+	if(arg_ptr -> type != LISTOP) {
+		if(arg_ptr -> type == ID || arg_ptr -> type == ARROP) {
+			node* n = searchScopeAll(top, arg_ptr -> attribute.sval);
+			return mkType(checkTypes(top, arg_ptr));
+		} else {
+			 return mkType(arg_ptr->type);
+		}
+	}
+	if(arg_ptr -> rightNode -> type != LISTOP) {
+
+		if(arg_ptr -> rightNode -> type == ID || arg_ptr -> leftNode -> type == ARROP) {
+			t = mkType(checkTypes(top, arg_ptr -> rightNode));
+		} else {
+			t = mkType(checkTypes(top, arg_ptr->rightNode));
+		}
+
+		if(arg_ptr -> leftNode -> type == LISTOP) {
+			t = linkTypes(t, findTypes(top, arg_ptr->leftNode));
+		}
+		else {
+			if(arg_ptr -> leftNode -> type == ID || arg_ptr -> leftNode -> type == ARROP) {
+				t = addType(t , checkTypes(top, arg_ptr -> leftNode));
+			} else {
+				t = addType(t, checkTypes(top, arg_ptr->leftNode));
+			}
+		}
+		return t;
+	}
+	return NULL;
+}
 
 void printTree(tree *t, int spaces)
 {

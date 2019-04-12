@@ -6,15 +6,18 @@
 #include "y.tab.h"
 #include "externs.h"
 #include "node.h"
+#include "types.h"
+
 
 extern void updateVars(scope* , tree*, tree*);
-extern void makeFunction(scope*, tree*, tree* );
-extern void makeProgram(scope*, tree* ) ;
+extern void makeFunction(scope*, tree*);
+extern void updateFunction(scope*, tree*, tree* , int);
+extern void makeProgram(scope*, tree* );
 extern void makeArray(scope* , char*, int, int, int );
-extern void makeVar(scope*, tree*, tree* );
 extern void makeProcedure(scope*, tree*);
-
-
+extern void updateProcedure(scope*, tree*, int);
+extern void makeVar(scope*, tree*, tree* );
+extern void makeParms(scope*, tree*, tree* );
 %}
 
 
@@ -152,9 +155,9 @@ type
 
 standard_type
 	: INTEGER
-		{$$ = strTree(INUM, $1, emptyTree(), emptyTree());}
+		{$$ = strTree(INUM, "INUM TYPE", emptyTree(), emptyTree());}
 	| REAL
-		{ $$ = strTree(RNUM, $1, emptyTree(), emptyTree());}
+		{ $$ = strTree(RNUM, "RNUM TYPE", emptyTree(), emptyTree());}
 	;
 
 subprogram_declarations
@@ -184,15 +187,16 @@ subprogram_declaration
 	;
 
 subprogram_head
-	: FUNCTION id { tmp = top_scope; top_scope = push_scope(top_scope);} arguments ':' standard_type ';'
+	: FUNCTION id { tmp = top_scope; top_scope = push_scope(top_scope, $2->attribute.sval, FUNCTION); makeFunction(tmp, $2); } arguments ':' standard_type ';'
 		{
-			makeFunction(tmp, $2, $6); 
+			updateFunction(tmp, $2, $6, countArgs(top_scope, $4, 0));
+			/*addArgs(top_scope, $2->attribute.sval, $4); */
 			$$ = strTree(FUNCTION, $2->attribute.sval, $2, $4 ); 
 		}
-	| PROCEDURE id { tmp = top_scope; top_scope = push_scope(top_scope);   } arguments ';'
+	| PROCEDURE id { tmp = top_scope; top_scope = push_scope(top_scope, $2->attribute.sval, PROCEDURE); makeProcedure(tmp, $2);  } arguments ';'
 		{
 			
-			makeProcedure(tmp, $2);
+			updateProcedure(tmp, $2, countArgs(top_scope, $4, 0));
 			$$ = strTree(PROCEDURE, $2->attribute.sval, $2, $4);
 		}
 	;
@@ -210,16 +214,15 @@ arguments
 parameter_list
 	: identifier_list ':' type
 		{
-			makeVar(top_scope, $1, $3);
+			makeParms(top_scope, $1, $3);
 			$$ = opTree(LISTOP, ":", $1, $3);
 		}
 	| parameter_list ';' identifier_list ':' type
 		{
-			makeVar(top_scope, $3, $5); 
+			makeParms(top_scope, $3, $5); 
 			$$ = opTree(LISTOP, ";", $1, opTree(LISTOP, ":", $3, $5));
 		}
 	;
-
 
 
 compound_statement
@@ -245,6 +248,7 @@ statement
 	: variable ASSIGNOP expression
 		{
 			sameTypes(top_scope, $1, $3);
+			checkLocal(top_scope, $1);
 			$$ = opTree(ASSIGNOP, "Assign", $1, $3); 
 		}
 	| procedure_statement
@@ -297,7 +301,9 @@ procedure_statement
 			checkID(top_scope, $1->attribute.sval);
 		}
 	| id '('  expression_list ')'
-		{ 
+		{
+
+			checkArgs(top_scope, $1, $3);
 			$$ = opTree(PAROP, "()", $1, $3);
 			checkID(top_scope, $1->attribute.sval);
 		}
@@ -354,15 +360,19 @@ factor
 		}
 	| id '(' expression_list ')'
 		{
+			checkArgs(top_scope, $1, $3);
+			checkID(top_scope, $1->attribute.sval);
 			$$ = opTree(PAROP, "()", $1, $3);
-			checkID(top_scope, $1->attribute.sval); 
+			 
 		}
 	| inum
 		{ $$ = $1; }
 	| rnum
 		{ $$ = $1; }
 	| '(' expression ')'
-		{ $$ = $2; }
+		{ 	
+			$$ = $2; 
+		}
 	| NOT factor
 		{ $$ = opTree(NOT, "NOT", $2, emptyTree()); }
 		

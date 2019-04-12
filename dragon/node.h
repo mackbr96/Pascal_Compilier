@@ -6,7 +6,8 @@
 typedef struct node node;
 
 typedef struct scope {
-
+	char* name;
+	int type;
 
 	node *table[HASH_SIZE];
 	struct scope *next;
@@ -21,7 +22,8 @@ struct node{
 
 	int start_idx;
 	int end_idx;
-
+	int args;
+	struct types* arg_types;
 	struct node* next;
 };
 
@@ -40,7 +42,7 @@ node *searchScope(scope *top, char *name);
 node *insertScope(scope *top, char *name);
 
 
-scope *push_scope(scope *);
+scope *push_scope(scope* top, char* name, int type);
 scope *pop_scope(scope *);
 scope *mkscope();
 

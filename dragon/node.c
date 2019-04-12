@@ -6,7 +6,7 @@
 #include "tree.h"
 #include "externs.h"
 #include "y.tab.h"
-
+#include "types.h"
 extern char *strdup( const char * );
 
 node *mknode(char* s) {
@@ -60,8 +60,10 @@ void freeScope(scope* s) {
 
 }
 
-scope *push_scope(scope* top) {
+scope *push_scope(scope* top, char* name, int type) {
     scope *p = mkscope();
+    p->name = strdup(name);
+    p -> type = type;
     p->next = top;
     return p;
 }
@@ -77,26 +79,42 @@ scope *pop_scope(scope* top) {
 
 
 
-void makeFunction(scope *top, tree* name, tree* type_ptr) {
+void makeFunction(scope *top, tree* name) {
 	node* n = insertScope(top, name->attribute.sval);
-
-	n -> type = FUNCTION; 
-	n -> returnType = type_ptr->type;
-	//n -> returnType = INUM;
+    n -> type = FUNCTION; 
+    types* ts = mkType(0);
+    n->arg_types = ts;
+    
 }
 
-void makeProcedure(scope* top, tree* name) {
-    node* n = insertScope(top, name->attribute.sval);
+void updateFunction(scope *top, tree* name, tree* type_ptr, int args) {
+    node* n = searchScopeAll(top, name->attribute.sval);
 
+    n -> args = args;
+	
+	n -> returnType = type_ptr->type;
+
+}
+
+
+void makeProcedure(scope* top, tree* name) {
+	node* n = insertScope(top, name->attribute.sval);
+    types* ts = mkType(0);
+    n -> arg_types = ts;
 	n -> type = PROCEDURE; 
 }    
+
+void updateProcedure(scope* top, tree* name, int args) {
+    node* n = searchScopeAll(top, name->attribute.sval);
+
+    n -> args = args;
+
+}
 
 void makeProgram(scope* top, tree* name) {
     node* n = insertScope(top, name->attribute.sval);
 
     n -> type = PROGRAM;
-
-
 }
 
 void makeArray(scope* top, char* name, int type, int start_idx, int end_idx) {
@@ -149,15 +167,50 @@ void makeVar(scope* top, tree* var_ptr, tree* type_ptr) {
 }
 
 
-void makeParms(scope* top, tree* var_ptr) {
-    tree* type_ptr = var_ptr -> rightNode;
-    var_ptr = var_ptr -> leftNode;
+void makeParms(scope* top, tree* var_ptr, tree* type_ptr) {
+	if(type_ptr -> type == ARRAY) {
+		int var_type = type_ptr -> rightNode -> type;
+		type_ptr = type_ptr -> leftNode;
 
+		if(type_ptr -> type != DOTDOT) {
+			yyerror("Array index missing DOTDOT");
+		}
 
+		if(type_ptr ->leftNode -> type != INUM || type_ptr -> rightNode -> type != INUM) {
+			yyerror("Array Index must be intergal");
+		}
 
+		int start_idx = type_ptr -> leftNode -> attribute.ival;
+		int end_idx = type_ptr -> rightNode -> attribute.ival;
+		char* var_name = var_ptr->leftNode->attribute.sval;
+		node* n = searchScopeAll(top, top->name);	
+		n -> arg_types = addType(n->arg_types, var_type);
+		makeArray(top, var_name, var_type, start_idx, end_idx);
 
-   
+	}
+	
+	 
+    else {
+        if(var_ptr -> type != LISTOP) {
+            node* n = insertScope(top, var_ptr-> attribute.sval );
+            n -> type = type_ptr -> type;
+				node* nf = searchScopeAll(top, top->name);	
+				nf -> arg_types = addType(nf->arg_types, type_ptr->type);
+
+        }
+        
+        if(var_ptr -> rightNode-> type != EMPTY) {
+            makeParms(top, var_ptr->rightNode, type_ptr);
+        }
+
+        if(var_ptr -> leftNode -> type != EMPTY) {
+            makeParms(top, var_ptr->leftNode, type_ptr);
+        }
+    }
+	 
 }
+
+ 
 
 
 void print_scope(scope* s) {
@@ -182,10 +235,20 @@ void print_scope(scope* s) {
                 break;
 
             case(PROCEDURE):
-                 fprintf(stderr, "Name: %s\t Type: Procedure\n", entry->name);
+                 fprintf(stderr, "Name: %s\t Type: Procedure \t Argument Types:", entry->name);
+                  while(entry->arg_types != NULL && entry->arg_types->type != 0) {
+						 fprintf(stderr, " %s ", typeToString(entry->arg_types->type));
+						 entry->arg_types = entry->arg_types->next;
+					 }
+                     fprintf(stderr, "\n");
                  break;
 			case(FUNCTION):
-                fprintf(stderr, "Name: %s\t Type: Function \tReturn Type: %s\n", entry->name, typeToString(entry->returnType));
+                fprintf(stderr, "Name: %s\t Type: Function \tReturn Type: %s \t Argument Types:", entry->name, typeToString(entry->returnType));
+					 while(entry->arg_types != NULL && entry->arg_types->type != 0) {
+						 fprintf(stderr, " %s ", typeToString(entry->arg_types->type));
+						 entry->arg_types = entry->arg_types->next;
+					 }
+                     fprintf(stderr, "\n");
                 break;
             case(PROGRAM):
                  fprintf(stderr, "Name: %s\t Type: Program\n", entry->name);
@@ -228,8 +291,7 @@ node *searchScope(scope* top, char* name) {
 
 node *insertScope(scope* top, char* name) {
      if(searchScope(top, name) != NULL) {
-         char *result = malloc(strlen("Redeclaration: ") + strlen(name) + 1); // +1 for the null-terminator
-    // in real code you would check for errors in malloc here
+        char *result = malloc(strlen("Redeclaration: ") + strlen(name) + 1); // +1 for the null-terminator
         strcpy(result, "Redeclaration: ");
         strcat(result, name);
         yyerror(result);
@@ -275,18 +337,19 @@ char* typeToString(int token)
 		case ASSIGNOP:
 			return "ASSIGNOP";
 		case NOT:
-			return "NOT";
-			
+			return "NOT";			
 		case ARRAY:
 			return "ARRAY";
 		case PAROP:
 			return "PAROP";
 		case LISTOP:
 			return "LISTOP";
-
 		case ID:
 			return "ID";
-
+        case FUNCTION:
+			return "FUNCTION";
+        case PROCEDURE:
+			return "PROCEDURE";
 		default:
 			fprintf(stderr, "OTHER: %d\n", token);
 			return "other";
@@ -306,6 +369,7 @@ void checkID(scope* top, char* name) {
         yyerror(result);
     }
 }
+
 
 
 
