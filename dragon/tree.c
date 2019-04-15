@@ -133,6 +133,12 @@ int checkTypes(scope *top, tree* t) {
 	node *var_ptr;
 
 	switch(t -> type) {
+		case(INTEGER):	
+			return INUM;
+			break;
+		case(REAL):
+			return RNUM;
+			break;
 		case (INUM):
 		case (RNUM):
 		case (EMPTY):
@@ -226,6 +232,12 @@ int checkTypes(scope *top, tree* t) {
 			if(checkTypes(top, t->rightNode) != INUM) {
 				yyerror(stringCat(t->rightNode->attribute.sval, " Index must be an integer type"));
 			}
+			
+			if(t->rightNode->attribute.ival < var_ptr -> start_idx || t->rightNode->attribute.ival > var_ptr -> end_idx) {
+				fprintf(stderr, "Error arror index must be within the indexs for the array %s on line %d\n", var_ptr->name, yylineno);
+				exit(0);
+			}
+				
 
 			return var_ptr->returnType;
 			break;
@@ -243,7 +255,6 @@ int checkTypes(scope *top, tree* t) {
 
 void sameTypes(scope* top, tree* left, tree* right) {
 	if(checkTypes(top, left) != checkTypes(top, right)) {
-
 		if(checkTypes(top, left) == PROCEDURE) {
 			fprintf(stderr, "Error %s is a 'Procedure' and should not return a value on line %d\n", left->attribute.sval, yylineno);
 			exit(0);
@@ -255,7 +266,7 @@ void sameTypes(scope* top, tree* left, tree* right) {
 		}
 
 		fprintf(stderr, "Type mismatch expected '%s' but got '%s'", typeToString(checkTypes(top, left)), typeToString(checkTypes(top, right)));
-		yyerror("Type mismatch");
+		yyerror("Type mismatch ");
 	}
 
 
@@ -265,7 +276,19 @@ void checkLocal(scope* top, tree* t) {
 		 fprintf(stderr, "Error cannot change non local variable %s in %s on line %d\n", t->attribute.sval, top->name, yylineno);
 		exit(0);
 	 }
+	 else if(searchScope(top, t->attribute.sval) == NULL) {
+		checkLocal(top->next, t);
+	 }
  }
+
+
+
+
+
+
+
+
+
 
 void enforce_type(scope* top, tree* t, int type) {
 	if(checkTypes(top, t) != type)
@@ -313,6 +336,7 @@ void checkFunction(scope* top, tree* head_ptr, tree* t) {
             //enforce_type(top, test, searchScopeAll(top, name)->returnType);
 			if(checkTypes(top, test-> rightNode) != searchScopeAll(top, name)->returnType) {
 				fprintf(stderr, "Error %s returns type %s but recivied type %s\n", name, typeToString(searchScopeAll(top, name)->returnType), typeToString(checkTypes(top, test-> rightNode)) );
+				exit(0);
 			}
 
     }
@@ -330,17 +354,15 @@ void checkFunction(scope* top, tree* head_ptr, tree* t) {
 int countArgs(scope* top, tree* t, int args) {
 	if(t == NULL || t -> type == EMPTY) 
 		return args;
-		
-	//if(t -> type  == ID || (t -> type == INUM && t->attribute.sval == NULL)  || (t-> type == RNUM && t->attribute.sval == NULL) || t -> type == ARROP ) {
-	if(t->type != LISTOP && (checkTypes(top, t) == ID || (checkTypes(top, t) == INUM && t->attribute.ival != -9191) || checkTypes(top, t) == RNUM )) {
+	if(t -> type  == ID || (t -> type == INUM )  || (t-> type == RNUM ) || t -> type == ARROP || t->type == PAROP || t->type == MULOP) {
 		args ++;
 	}
 	
-	if(t -> leftNode != NULL && t -> leftNode -> type != EMPTY && t -> type != ARROP && t->type != ADDOP) {
+	if(t -> leftNode != NULL && t -> leftNode -> type != EMPTY && t -> type != ARROP && t->type != ADDOP && t-> type != PAROP && t->type != MULOP) {
 		args += countArgs(top, t->leftNode, 0);
 	}
 
-	if(t -> rightNode != NULL && t -> rightNode -> type != EMPTY && t -> type != ARROP && t->type != ADDOP) {
+	if(t -> rightNode != NULL && t -> rightNode -> type != EMPTY && t -> type != ARROP && t->type != ADDOP && t->type != PAROP && t->type != MULOP) {
 		args += countArgs(top, t->rightNode, 0);
 	}
 
@@ -351,7 +373,6 @@ int countArgs(scope* top, tree* t, int args) {
 void checkArgs(scope* top,tree* fnc_ptr, tree* args_ptr) {
 	node* fnc_node = searchScopeAll(top, fnc_ptr -> attribute.sval);
 	int fnc_args = fnc_node->args;
-	fprintf(stderr, "The number of args: %d\n", fnc_args);
 	if(countArgs(top, args_ptr, 0) != fnc_args) {
 		fprintf(stderr, "Error %s requires %d arguments given %d on line %d\n", fnc_node->name, fnc_node->args, countArgs(top, args_ptr, 0), yylineno);
 		//exit(0);
@@ -363,7 +384,7 @@ void checkArgs(scope* top,tree* fnc_ptr, tree* args_ptr) {
 	while(fnc_node -> arg_types -> type != 0 && t -> type != 0) {
 		if(fnc_node -> arg_types -> type != t->type) {
 			fprintf(stderr, "ERROR wrong argument types for %s %s requires %s but recived %s on line %d\n", typeToString(fnc_node->type), fnc_node->name, typeToString(fnc_node -> arg_types -> type), typeToString(t->type), yylineno);
-			//exit(0);
+			exit(0);
 		break;
 		}
 		else {

@@ -155,9 +155,9 @@ type
 
 standard_type
 	: INTEGER
-		{$$ = strTree(INUM, "INUM TYPE", emptyTree(), emptyTree());}
+		{$$ = strTree(INTEGER, "INUM TYPE", emptyTree(), emptyTree());}
 	| REAL
-		{ $$ = strTree(RNUM, "RNUM TYPE", emptyTree(), emptyTree());}
+		{ $$ = strTree(REAL, "RNUM TYPE", emptyTree(), emptyTree());}
 	;
 
 subprogram_declarations
@@ -278,6 +278,8 @@ statement
 			$$ = strTree(FOR, "for",
 					opTree(ASSIGNOP, $3, $2, $4),
 					strTree(TO, "to do", $6, $8));
+			sameTypes(top_scope, $2, $4);
+			sameTypes(top_scope, $2, $6);
 		}
 	;
 
@@ -405,13 +407,8 @@ scope *top_scope;
 scope* tmp;
 int main() {
 	top_scope = mkscope();
-	// tree *t = intTree(ADDOP, 4, emptyTree(), emptyTree());
-	// tree *y = intTree(ADDOP, 5, emptyTree(), emptyTree());
-	// tree *r = intTree(ADDOP, 6, t, y);
-	// printTree(r, 0);
 	yyparse();
 
-	//print_scope(top_scope);
 
 }
 

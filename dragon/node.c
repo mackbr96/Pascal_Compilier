@@ -92,7 +92,17 @@ void updateFunction(scope *top, tree* name, tree* type_ptr, int args) {
 
     n -> args = args;
 	
-	n -> returnType = type_ptr->type;
+	switch(type_ptr->type) {
+		case(INTEGER):
+			n->returnType = INUM;
+			break;
+		case(RNUM):
+			n->returnType = RNUM;
+			break;
+		default:
+			fprintf(stderr, "Error functions can only return INT or REAL on line %d\n", yylineno);
+			exit(0);
+	}
 
 }
 
@@ -120,7 +130,16 @@ void makeProgram(scope* top, tree* name) {
 void makeArray(scope* top, char* name, int type, int start_idx, int end_idx) {
 	node* n = insertScope(top, name);
 	n -> type = ARRAY;
-	n -> returnType = type;
+	switch(type) {
+		case(INTEGER):
+			n->returnType = INUM;
+			break;
+		case(REAL):
+			n->returnType = RNUM;
+			break;
+		default:
+			n->returnType = type;
+	}
 	n -> start_idx = start_idx;
 	n -> end_idx = end_idx;
 
@@ -152,7 +171,17 @@ void makeVar(scope* top, tree* var_ptr, tree* type_ptr) {
     else {
         if(var_ptr -> type != LISTOP) {
             node* n = insertScope(top, var_ptr-> attribute.sval );
-            n -> type = type_ptr -> type; 
+				switch(type_ptr -> type){
+					case(INTEGER):
+						n->type = INUM;
+						break;
+					case(REAL):
+						n->type = RNUM;
+						break;
+					default:
+		            n -> type = type_ptr -> type; 
+						break;
+				}
         }
         
         if(var_ptr -> rightNode-> type != EMPTY) {
@@ -193,9 +222,22 @@ void makeParms(scope* top, tree* var_ptr, tree* type_ptr) {
     else {
         if(var_ptr -> type != LISTOP) {
             node* n = insertScope(top, var_ptr-> attribute.sval );
-            n -> type = type_ptr -> type;
+
+				switch(type_ptr -> type) {
+					case(INTEGER):
+						n->type = INUM;
+						break;
+					case(REAL):
+						n->type = RNUM;
+						break;
+					default:
+		            n -> type = type_ptr -> type; 
+						break;
+				}
+
+
 				node* nf = searchScopeAll(top, top->name);	
-				nf -> arg_types = addType(nf->arg_types, type_ptr->type);
+				nf -> arg_types = addType(nf->arg_types, n->type);
 
         }
         
@@ -243,12 +285,7 @@ void print_scope(scope* s) {
                      fprintf(stderr, "\n");
                  break;
 			case(FUNCTION):
-                fprintf(stderr, "Name: %s\t Type: Function \tReturn Type: %s \t Argument Types:", entry->name, typeToString(entry->returnType));
-					 while(entry->arg_types != NULL && entry->arg_types->type != 0) {
-						 fprintf(stderr, " %s ", typeToString(entry->arg_types->type));
-						 entry->arg_types = entry->arg_types->next;
-					 }
-                     fprintf(stderr, "\n");
+                fprintf(stderr, "Name: %s\t Type: Function \tReturn Type: %s\n", entry->name, typeToString(entry->returnType));
                 break;
             case(PROGRAM):
                  fprintf(stderr, "Name: %s\t Type: Program\n", entry->name);

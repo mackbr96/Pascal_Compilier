@@ -5,9 +5,14 @@ var z : array[1..6] of  integer;
 		begin
 			a := 3;
 			b := 3;
+			for a := 1 to b + 10 do
+  			begin
+				x := a + 1
+  			end;
+
 			boo := 3
 		end;
 begin
-x := z[8];
-x := boo(2+2,3)
+x := boo(2*2,2);
+x := z[1]
 end.
