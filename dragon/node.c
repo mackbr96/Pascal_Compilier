@@ -34,11 +34,13 @@ node *searchNode(node* top, char* s) {
 }
 
 node *insertNode(node* top, char* s) {
-    node *p = mknode(s);
-    p -> next = top;
-    top = p;
+		
+	node *p = mknode(s);
 
-    return top;
+   p -> next = top;
+   top = p;
+
+   return top;
 }
 
 
@@ -51,7 +53,7 @@ scope *mkscope() {
     }
 
     p -> next = NULL;
-
+	 p -> varNum = 0;
     return p;
 }
 
@@ -96,7 +98,7 @@ void updateFunction(scope *top, tree* name, tree* type_ptr, int args) {
 		case(INTEGER):
 			n->returnType = INUM;
 			break;
-		case(RNUM):
+		case(REAL):
 			n->returnType = RNUM;
 			break;
 		default:
@@ -108,10 +110,10 @@ void updateFunction(scope *top, tree* name, tree* type_ptr, int args) {
 
 
 void makeProcedure(scope* top, tree* name) {
-	node* n = insertScope(top, name->attribute.sval);
+	 node* n = insertScope(top, name->attribute.sval);
     types* ts = mkType(0);
-    n -> arg_types = ts;
-	n -> type = PROCEDURE; 
+	 n -> arg_types = ts;
+	 n -> type = PROCEDURE; 
 }    
 
 void updateProcedure(scope* top, tree* name, int args) {
@@ -234,11 +236,8 @@ void makeParms(scope* top, tree* var_ptr, tree* type_ptr) {
 		            n -> type = type_ptr -> type; 
 						break;
 				}
-
-
 				node* nf = searchScopeAll(top, top->name);	
 				nf -> arg_types = addType(nf->arg_types, n->type);
-
         }
         
         if(var_ptr -> rightNode-> type != EMPTY) {
@@ -284,9 +283,10 @@ void print_scope(scope* s) {
 					 }
                      fprintf(stderr, "\n");
                  break;
-			case(FUNCTION):
+				case(FUNCTION):
                 fprintf(stderr, "Name: %s\t Type: Function \tReturn Type: %s\n", entry->name, typeToString(entry->returnType));
                 break;
+				
             case(PROGRAM):
                  fprintf(stderr, "Name: %s\t Type: Program\n", entry->name);
                  break;
@@ -294,7 +294,9 @@ void print_scope(scope* s) {
             case(ARRAY):
                 fprintf(stderr, "Name: %s\t\t Type: ARRAY \t Return Type: %s\n", entry->name, typeToString(entry->returnType));
                 break;
-                
+
+            case(0):
+					break;
             default:
                 fprintf(stderr, "NOT DONE YET: %s\t%d\n", entry->name, entry->type);
             }
@@ -336,6 +338,8 @@ node *insertScope(scope* top, char* name) {
     int index = hashpjw(name);
     node *tmp = top -> table[index];
     top->table[index] = insertNode(tmp, name);
+	 top -> varNum++;
+	 top->table[index]->offset = top->varNum;
     return top->table[index];
 
 }
@@ -362,9 +366,9 @@ char* typeToString(int token)
 		case EMPTY:
 			return "EMPTY";
 		case INTEGER:
-			return "integer keyword"; // BAD!
+			return "integer keyword"; 
 		case REAL:
-			return "real keyword"; // BAD!
+			return "real keyword"; 
 		case ADDOP:
 			return "ADDOP";
 		case MULOP:

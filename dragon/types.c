@@ -15,7 +15,7 @@ types* mkType(int type) {
 }
 types* addType(types* t, int type) {
 	types *p = mkType(type);
-    p -> next = t;
+	p -> next = t;
  	t = p;
 
     return t;

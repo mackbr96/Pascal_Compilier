@@ -3,10 +3,12 @@
 #include <stdlib.h>
 #include <assert.h>
 #include "tree.h"
-#include "y.tab.h"
 #include "externs.h"
 #include "node.h"
+#include "gencode.h"
 #include "types.h"
+#include "rstack.h"
+#include "y.tab.h"
 
 
 extern void updateVars(scope* , tree*, tree*);
@@ -18,6 +20,8 @@ extern void makeProcedure(scope*, tree*);
 extern void updateProcedure(scope*, tree*, int);
 extern void makeVar(scope*, tree*, tree* );
 extern void makeParms(scope*, tree*, tree* );
+
+
 %}
 
 
@@ -105,23 +109,23 @@ start
 
 
 program 
-	: PROGRAM id  '(' identifier_list ')'  ';' 
+	: PROGRAM id {add_io_gencode(); main_header_gencode();} '(' identifier_list ')'  ';' 
 	declarations
 	subprogram_declarations
 	compound_statement
 	'.'
 	{
 		makeProgram(top_scope, $2);
-		makeVar(top_scope, $4, strTree(INUM, $1, emptyTree(), emptyTree()));	
+		makeVar(top_scope, $5, strTree(INUM, $1, emptyTree(), emptyTree()));	
 		
 		$$ = strTree(PROGRAM, "head body",
-					opTree(PAROP, "()", $2, $4),
+					opTree(PAROP, "()", $2, $5),
 					strTree(PROGRAM, "decls compound_stmt",
-						strTree(PROGRAM, "decls sub_decls", $7, $8), $9 
+						strTree(PROGRAM, "decls sub_decls", $8, $9), $10 
 					)
 				);
 
-
+		main_footer_gencode();
 		
 	}
 	;
@@ -250,10 +254,12 @@ statement
 			sameTypes(top_scope, $1, $3);
 			checkLocal(top_scope, $1);
 			$$ = opTree(ASSIGNOP, "Assign", $1, $3); 
+			assign_gencode($$);
 		}
 	| procedure_statement
 		{
 			$$ = $1;
+			call_procedure_gencode($1);
 		}
 	| compound_statement
 		{$$ = $1;}
@@ -291,7 +297,7 @@ variable
 		}
 	| id '[' expression ']'
 		{
-			$$ = opTree(ARROP, "[]", $1, $3);
+			$$ = opTree(ARROP, $1->attribute.sval, $1, $3);
 			checkID(top_scope, $1->attribute.sval); 
 		}
 	;
@@ -305,7 +311,9 @@ procedure_statement
 	| id '('  expression_list ')'
 		{
 
-			checkArgs(top_scope, $1, $3);
+			//checkArgs(top_scope, $1, $3);
+			checkArgs(top_scope, searchScopeAll(top_scope, $1->attribute.sval), $3);
+
 			$$ = opTree(PAROP, "()", $1, $3);
 			checkID(top_scope, $1->attribute.sval);
 		}
@@ -313,7 +321,10 @@ procedure_statement
 
 expression_list
 	: expression
-		{$$ = $1;}
+		{
+			$$ = opTree(LISTOP, ",", emptyTree(), $1); 
+			/*$$ = $1;*/
+		}
 	| expression_list ',' expression
 		{ $$ = opTree(LISTOP, ",", $1, $3); }
 	;
@@ -323,12 +334,14 @@ expression
 		{
 			tree* t = $1;
 			checkTypes(top_scope, t);
+			numberTree(t);
 			$$ = t;
 		}
 	| simple_expression RELOP simple_expression 
 		{ 
 			tree* t = opTree(RELOP, $2, $1, $3);
 			checkTypes(top_scope, t);
+			numberTree(t);
 			$$ = t;
 		}
 	;
@@ -362,7 +375,8 @@ factor
 		}
 	| id '(' expression_list ')'
 		{
-			checkArgs(top_scope, $1, $3);
+			//checkArgs(top_scope, $1, $3);
+			checkArgs(top_scope, searchScopeAll(top_scope, $1->attribute.sval), $3);
 			checkID(top_scope, $1->attribute.sval);
 			$$ = opTree(PAROP, "()", $1, $3);
 			 
@@ -405,10 +419,26 @@ rnum
 
 scope *top_scope;
 scope* tmp;
+stack* rstack;
+FILE* outfile;
 int main() {
+		
+	outfile = fopen("output.s", "w");
 	top_scope = mkscope();
-	yyparse();
+	insertScope(top_scope, "read");
+	updateProcedure(top_scope, strTree(PROCEDURE, "read", emptyTree(), emptyTree()),  1);
+	insertScope(top_scope, "write");
+	updateProcedure(top_scope, strTree(PROCEDURE, "write", emptyTree(), emptyTree()),  1);
 
+
+	rstack = (stack*)malloc(sizeof(stack));
+	for(int i = 0; i < MAX_REGS; i++) {
+		rstack->reg[i] = i;
+	}
+	rstack->idx = MAX_REGS - 1;
+	file_header_gencode();
+	yyparse();
+	file_footer_gencode();
 
 }
 

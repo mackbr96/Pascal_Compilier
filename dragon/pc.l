@@ -11,7 +11,6 @@
 #define DEBUG 0
 
 extern char *strdup( const char * );
-
 int lineNum = 1;
 
 int yyerror(char* msg);
@@ -69,7 +68,7 @@ whitespace [ \t]+
 "//".*\n		{if(DEBUG == 1) fprintf(stderr, "[COMMENT]\n"); lineNum++;}
 
 
-"program"	{if(DEBUG == 1) fprintf(stderr, "TOKENIZER\n\n_________\n\n[PROGRAM]");  yylval.sval = strdup(yytext); return PROGRAM;}
+"program"	{if(DEBUG == 1) fprintf(stderr, "TOKENIZER\n\n_________\n\n1. [PROGRAM]");  yylval.sval = strdup(yytext); return PROGRAM;}
 "var"			{if(DEBUG == 1) fprintf(stderr, "[VAR]");  yylval.sval = strdup(yytext); return VAR;}
 "of"			{if(DEBUG == 1) fprintf(stderr, "[OF]");  yylval.sval = strdup(yytext); return OF;}
 ".."			{if(DEBUG == 1) fprintf(stderr, "[DOTDOT]");  yylval.sval = strdup(yytext); return DOTDOT;}
@@ -85,7 +84,7 @@ whitespace [ \t]+
 
 		
 {whitespace} ;
-\n				{if(DEBUG == 1) fprintf(stderr, "\n");lineNum++;}
+\n				{if(DEBUG == 1) fprintf(stderr, "\n%d. ", yylineno);lineNum++;}
 
 .				{if(DEBUG == 1) fprintf(stderr, "Unknown char [ %s ] on line %d", yytext, lineNum); yyerror("Unkown Char");}
 

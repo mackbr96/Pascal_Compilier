@@ -9,6 +9,9 @@ typedef struct scope {
 	char* name;
 	int type;
 
+	int varNum;
+	
+
 	node *table[HASH_SIZE];
 	struct scope *next;
 } scope;
@@ -17,6 +20,7 @@ typedef struct scope {
 struct node{
 	char* name;
 
+	int offset;
 	int type;
 	int returnType;
 
