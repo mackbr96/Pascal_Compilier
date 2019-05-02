@@ -17,6 +17,11 @@ void file_header_gencode();
 
 void gencode(tree*);
 
+void start_if(tree*);
+void mid_if(tree*);
+void end_if(tree*);
+
+
 char* var_to_assembly(char* name);
 char* assign_gencode(tree* n);
 void print_code(char*, char*, char* );

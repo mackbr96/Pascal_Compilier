@@ -263,16 +263,12 @@ statement
 		}
 	| compound_statement
 		{$$ = $1;}
-	| IF expression THEN statement
+	
+	| IF expression {start_if($2);} THEN statement {mid_if($5);} ELSE statement
 		{
-			$$ = strTree(IF, "If-Then", $2, $4); 
+			$$ = strTree(IF, "if then-else", $2, strTree(IF, "then else", $5, $8)); 
 			enforce_type(top_scope, $2, BOOL);
-		}
-		
-	| IF expression THEN statement ELSE statement
-		{
-			$$ = strTree(IF, "if then-else", $2, strTree(IF, "then else", $4, $6)); 
-			enforce_type(top_scope, $2, BOOL);
+			end_if($8);
 		}
 	| WHILE expression DO statement
 		{
@@ -416,13 +412,13 @@ rnum
 
 
 %%
-
+int L;
 scope *top_scope;
 scope* tmp;
 stack* rstack;
 FILE* outfile;
 int main() {
-		
+	L = 2;
 	outfile = fopen("output.s", "w");
 	top_scope = mkscope();
 	insertScope(top_scope, "read");

@@ -1,48 +1,56 @@
 	.file	"output.s"
-	.intel_syntax noprefix
-
 	.section	.rodata
 .LC0: # reading
-	.string "%lld"
-.LC1: # writing
-	.string "%lld\n"
+	.string "%d"
 	.text
-
-
-	.globl	main
-	.type	main, @function
+	.global	main
+	.type main, @function
+.LC1: # writing
+	.string "%d\n"
+	.text
+	.global	main
+	.type main, @function
 main:
-	push	rbp
-	mov		rbp, rsp
-	push	0
-	push	rbp
+	pushq		%rbp
+	movq		%rsp, %rbp
+	pushq		$0
+	pushq		%rbp
 
 # Assignment Evaluation
-	mov		r8, 2
-# Printing operation
-	imul		r8, 6
+	movq		$6, %r8
 # assign gencode
-	mov		QWORD PTR [rbp - 0], r8
+	mov		%r8, -16(%rbp)
+# Start IF
+	movq		-16(%rbp), %r8
+# Printing operation
+	cmpq		$8, %r8
+	jge		.L2
 
 # Assignment Evaluation
-	mov		r8, QWORD PTR [rbp - 0]
-# Printing operation
-	add		r8, 8
+	movq		$1, %r8
 # assign gencode
-	mov		QWORD PTR [rbp - 16], r8
+	mov		%r8, -16(%rbp)
+	jmp		.L4
+.L2:
+
+# Assignment Evaluation
+	movq		$2, %r8
+# assign gencode
+	mov		%r8, -16(%rbp)
+# END IF
+.L4:
 
 # evaluate 'write' arguments
-	mov		r8, QWORD PTR [rbp - 16]
+	movl		-16(%rbp), %edx
 
 # call 'write' using fprintf
-	mov		rdx, r8
-	mov		rax, QWORD PTR stderr[rip]
-	mov		esi, OFFSET FLAT:.LC1
-	mov		rdi, rax
-	mov		eax, 0
+	movq		stderr(%rip), %rax
+	movl		$.LC1, %esi
+	movq		%rax, %rdi
+	movl		$0, %eax
 	call	fprintf
 
-	mov		eax, 0
+	movl		$0, %eax
 	leave
 	ret
 

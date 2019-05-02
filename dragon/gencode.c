@@ -40,7 +40,7 @@ char* getValue(tree* n)
 	switch(n->type)
 	{
 		case INUM:
-			sprintf(str, "%d", n->attribute.ival);
+			sprintf(str, "$%d", n->attribute.ival);
 			return strdup(str);
 		
 		case RNUM:
@@ -63,13 +63,16 @@ char* var_to_assembly(char* name) {
 	int offset = n -> offset;
 	int base = top_scope -> varNum;	
 	fprintf(stderr, "Offet = %d base = %d\n", offset, base);
-	char str[150];
-	sprintf(str, "QWORD PTR [rbp - ");
-	char num[20];
-	sprintf(num, "%d", (offset-base + 2)*8); 	// store above base pointer,
-	strcat(str, num);						// leaving room for return value
-	strcat(str, "]");						// and static parent pointer
-	return strdup(str);
+	char str[20];
+	sprintf(str, "(%rbp)");
+	char num[50];
+	sprintf(num, "%d", (offset-base + 2)*8);
+	fprintf(stderr, "NUM IS %s\n", num); 	// store above base pointer,
+	strcat(num, str);
+	char final[150];
+	sprintf(final, "-");
+	strcat(final, num);						// leaving room for return value
+	return strdup(final);
 }
 
 void genCode(tree* n) {
@@ -130,42 +133,65 @@ char* assign_gencode(tree* n) {
 	fprintf(outfile, "\n# Assignment Evaluation\n");
 	genCode(n->rightNode);
 	fprintf(outfile, "# assign gencode\n");
-	fprintf(outfile, "\tmov\t\t%s, %s\n", getValue(n->leftNode), getReg(top(rstack)));
+	fprintf(outfile, "\tmov\t\t%s, %s\n", getReg(top(rstack)), getValue(n->leftNode));
 }
 
 
-void print_code(char* opval, char* left, char* right) {
+void print_code(char* opval, char* right, char* left) {
 	if(!strcmp(opval, "mov"))
-		fprintf(outfile, "\tmov\t\t%s, %s\n", left, right);
+		fprintf(outfile, "\tmovq\t\t%s, %s\n", left, right);
 	else if(!strcmp(opval, "+"))
-		fprintf(outfile, "\tadd\t\t%s, %s\n", left, right);
+		fprintf(outfile, "\taddq\t\t%s, %s\n", left, right);
 	else if(!strcmp(opval, "-"))
-		fprintf(outfile, "\tsub\t\t%s, %s\n", left, right);
+		fprintf(outfile, "\tsubq\t\t%s, %s\n", left, right);
 	else if(!strcmp(opval, "*"))
 		fprintf(outfile, "\timul\t\t%s, %s\n", left, right);
 	else {
-		fprintf(stderr, "You forgot to add %s in Print Code\n", opval);
-		exit(0);
+		if(!strcmp(opval, "=")) {
+			fprintf(outfile, "\tcmpq\t\t%s, %s\n", left, right);
+			fprintf(outfile, "\tjne\t\t.L%d\n", L);
+		}
+		else if(!strcmp(opval, ">" )) {
+			fprintf(outfile, "\tcmpq\t\t%s, %s\n", left, right);
+			fprintf(outfile, "\tjle\t\t.L%d\n", L);
+		}
+		else if(!strcmp(opval, "<")) {
+			fprintf(outfile, "\tcmpq\t\t%s, %s\n", left, right);
+			fprintf(outfile, "\tjge\t\t.L%d\n", L);
+		}
+		else if(!strcmp(opval, "<=")) {
+			fprintf(outfile, "\tcmpq\t\t%s, %s\n", left, right);
+			fprintf(outfile, "\tjg\t\t.L%d\n", L);
+		}
+		else if(!strcmp(opval, ">=")) {
+			fprintf(outfile, "\tcmpq\t\t%s, %s\n", left, right);
+			fprintf(outfile, "\tjl\t\t.L%d\n", L);
+		}
+
+
+		else {
+			fprintf(stderr, "You forgot to add %s in Print Code\n", opval);
+			exit(0);
+		}
 	}
 
 }
 
 
 void main_header_gencode() {
-	fprintf(outfile, "\t.globl\tmain\n");
-	fprintf(outfile, "\t.type\tmain, @function\n");
 	fprintf(outfile, "main:\n");
-	fprintf(outfile, "\tpush\trbp\n");
-	fprintf(outfile, "\tmov\t\trbp, rsp\n");
+	fprintf(outfile, "\tpushq\t\t%rbp\n");
+	fprintf(outfile, "\tmovq\t\t%rsp, %rbp\n");
+	fprintf(outfile, "\tpushq\t\t$0\n");
+	fprintf(outfile, "\tpushq\t\t%rbp\n");
 
-	fprintf(outfile, "\tpush\t0\n");
-	fprintf(outfile, "\tpush\trbp\n");
+
 	//fprintf(outfile, "\tsub\t\trsp, %d\n", 8*(top_table()->num_locals));
 
 }
 
 void main_footer_gencode() {
-	fprintf(outfile, "\tmov\t\teax, 0\n");
+	fprintf(outfile, "\tmovl\t\t$0, %%eax\n");
 	fprintf(outfile, "\tleave\n");
 	fprintf(outfile, "\tret\n");
 	fprintf(outfile, "\n\t.size\tmain, .-main\n\n\n");
@@ -173,12 +199,17 @@ void main_footer_gencode() {
 }
 
 void add_io_gencode() {
-	fprintf(outfile, "\t.section\t.rodata\n");
+	
 	fprintf(outfile, ".LC0: # reading\n");
-	fprintf(outfile, "\t.string \"%%lld\"\n");
+	fprintf(outfile, "\t.string \"%%d\"\n");
+	fprintf(outfile, "\t.text\n");
+	fprintf(outfile, "\t.global\tmain\n");
+	fprintf(outfile, "\t.type main, @function\n");
 	fprintf(outfile, ".LC1: # writing\n");
-	fprintf(outfile, "\t.string \"%%lld\\n\"\n");
-	fprintf(outfile, "\t.text\n\n\n");
+	fprintf(outfile, "\t.string \"%%d\\n\"\n");
+	fprintf(outfile, "\t.text\n");
+	fprintf(outfile, "\t.global\tmain\n");
+	fprintf(outfile, "\t.type main, @function\n");
 }
 
 
@@ -190,7 +221,7 @@ void file_footer_gencode() {
 
 void file_header_gencode() {
 	fprintf(outfile, "\t.file\t\"output.s\"\n");
-	fprintf(outfile, "\t.intel_syntax noprefix\n\n");
+	fprintf(outfile, "\t.section\t.rodata\n");
 }
 
 void call_procedure_gencode(tree* t) {
@@ -199,27 +230,41 @@ void call_procedure_gencode(tree* t) {
 
 	if(!strcmp(name, "write")) {
 		tree* var_ptr = t->rightNode->rightNode;
+		char* var_name = t->rightNode->rightNode->attribute.sval;
 		fprintf(outfile, "\n# evaluate 'write' arguments\n");
-		genCode(var_ptr);
+		fprintf(outfile, "\tmovl\t\t%s, %%edx\n", var_to_assembly(var_name));
 		fprintf(outfile, "\n# call 'write' using fprintf\n");
-		fprintf(outfile, "\tmov\t\trdx, %s\n", getReg(top(rstack)));
-		fprintf(outfile, "\tmov\t\trax, QWORD PTR stderr[rip]\n");
-		fprintf(outfile, "\tmov\t\tesi, OFFSET FLAT:.LC1\n");
-		fprintf(outfile, "\tmov\t\trdi, rax\n");
-		fprintf(outfile, "\tmov\t\teax, 0\n");
+		fprintf(outfile, "\tmovq\t\tstderr(%rip), %rax\n");
+		fprintf(outfile, "\tmovl\t\t$.LC1, %%esi\n");
+		fprintf(outfile, "\tmovq\t\t%rax, %rdi\n");
+		fprintf(outfile, "\tmovl\t\t$0, %%eax\n");
 		fprintf(outfile, "\tcall\tfprintf\n\n");	
 	}
 	else if(!strcmp(name, "read")) {
 		char* var_name = t->rightNode->rightNode->attribute.sval;
 		fprintf(outfile, "\n# call 'read' using fscanf\n");
-		fprintf(outfile, "\tmov\t\trax, QWORD PTR fs:40\n");
-		fprintf(outfile, "\txor\t\teax, eax\n");
-		fprintf(outfile, "\tmov\t\trax, QWORD PTR stdin[rip]\n");
-		fprintf(outfile, "\tlea\t\trdx, %s\n", var_to_assembly(var_name));
-		fprintf(outfile, "\tmov\t\tesi, OFFSET FLAT:.LC0\n");
-		fprintf(outfile, "\tmov\t\trdi, rax\n");
-		fprintf(outfile, "\tmov\t\teax, 0\n");
-		fprintf(outfile, "\tcall\t__isoc99_fscanf\n\n");
-			//fprintf(outfile, "\tmov\t\t%s, 3\n", getReg(top(rstack))); 
+		fprintf(outfile, "\tleaq\t\t%s, %rax\n", var_to_assembly(var_name));
+		fprintf(outfile, "\tmovq\t\t%rax, %rsi\n");
+		fprintf(outfile, "\tmovl\t\t$.LC0, %%edi\n");
+		fprintf(outfile, "\tmovl\t\t$0, %%eax\n");
+		fprintf(outfile, "\tcall __isoc99_scanf\n");
+	
 	}
+}
+
+
+void start_if(tree* t) {
+	fprintf(outfile, "# Start IF\n");
+	genCode(t);
+}
+void mid_if(tree* t) {
+	fprintf(outfile, "\tjmp\t\t.L%d\n", L + 2);
+	fprintf(outfile, ".L%d:\n", L);
+	
+}
+void end_if(tree* t) {
+	fprintf(outfile, "# END IF\n");
+	fprintf(outfile, ".L%d:\n", L + 2);
+	L = L + 6;
+
 }

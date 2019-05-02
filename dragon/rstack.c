@@ -7,7 +7,7 @@
 
 
 char* getReg(int i) {
-	static char* regStrings[] = {"r11","r10","r9","r8"};
+	static char* regStrings[] = {"%r11","%r10","%r9","%r8"};
 
 	return regStrings[i];
 }

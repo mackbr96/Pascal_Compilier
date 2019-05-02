@@ -6,7 +6,7 @@
 #include "types.h"
 
 //typedef struct tree tree;
-
+extern int L;
 extern FILE* outfile;
 extern scope* top_scope;
 typedef struct tree{
