@@ -405,12 +405,14 @@ typedef struct {
 static YYSTACKDATA yystack;
 #line 418 "pc.y"
 int L;
+int offBase;
 scope *top_scope;
 scope* tmp;
 stack* rstack;
 FILE* outfile;
 int main() {
 	L = 2;
+	offBase = 0;
 	outfile = fopen("output.s", "w");
 	top_scope = mkscope();
 	insertScope(top_scope, "read");
@@ -434,7 +436,7 @@ int main() {
 
 
 
-#line 437 "y.tab.c"
+#line 439 "y.tab.c"
 
 #if YYDEBUG
 #include <stdio.h>		/* needed for printf */
@@ -1014,7 +1016,7 @@ case 63:
 #line 413 "pc.y"
 	{ yyval.tval = fTree(RNUM, yystack.l_mark[0].fval, emptyTree(), emptyTree()); }
 break;
-#line 1017 "y.tab.c"
+#line 1019 "y.tab.c"
     }
     yystack.s_mark -= yym;
     yystate = *yystack.s_mark;

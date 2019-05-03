@@ -1,11 +1,13 @@
 program main(input, output);
 var x: integer;
-procedure foo(x : integer);
+procedure foo(x : integer; y : integer);
 	begin
-		x := 10;
+		write(x);
 		write(x)
 	end;
 begin
-	foo(x);
-	x := 6
+	x := 10;
+	write(x);
+	write(x);
+	foo(2, 4)
 end.

@@ -8,6 +8,7 @@
 #include "y.tab.h"
 
 char* getValue(tree* n);
+void print_args(tree*, int);
 
 void main_header_gencode();
 void main_footer_gencode();

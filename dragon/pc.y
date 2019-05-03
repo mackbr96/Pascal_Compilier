@@ -416,12 +416,14 @@ rnum
 
 %%
 int L;
+int offBase;
 scope *top_scope;
 scope* tmp;
 stack* rstack;
 FILE* outfile;
 int main() {
 	L = 2;
+	offBase = 0;
 	outfile = fopen("output.s", "w");
 	top_scope = mkscope();
 	insertScope(top_scope, "read");

@@ -7,6 +7,7 @@
 
 //typedef struct tree tree;
 extern int L;
+extern int offBase;
 extern FILE* outfile;
 extern scope* top_scope;
 typedef struct tree{

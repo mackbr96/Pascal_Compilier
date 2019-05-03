@@ -14,15 +14,25 @@
 foo:
 	pushq		%rbp
 	movq		%rsp, %rbp
-	pushq		$0
-
-# Assignment Evaluation
-	movq		$10, %r8
-# assign gencode
-	mov		%r8, -16(%rbp)
+	subq		$24, %rsp 
+	movq		16(%rbp), %r8
+	movq		%r8, -8(%rbp)
+	movq		24(%rbp), %r8
+	movq		%r8, -16(%rbp)
 
 # evaluate 'write' arguments
-	movl		-16(%rbp), %edx
+	movl		-8(%rbp), %edx
+
+# call 'write' using fprintf
+	movq		stderr(%rip), %rax
+	movl		$.LC1, %esi
+	movq		%rax, %rdi
+	movl		$0, %eax
+	call	fprintf
+
+
+# evaluate 'write' arguments
+	movl		-8(%rbp), %edx
 
 # call 'write' using fprintf
 	movq		stderr(%rip), %rax
@@ -41,14 +51,41 @@ main:
 	pushq		$0
 	pushq		%rbp
 
+# Assignment Evaluation
+	movq		$10, %r8
+# assign gencode
+	mov		%r8, -8(%rbp)
+
+# evaluate 'write' arguments
+	movl		-8(%rbp), %edx
+
+# call 'write' using fprintf
+	movq		stderr(%rip), %rax
+	movl		$.LC1, %esi
+	movq		%rax, %rdi
+	movl		$0, %eax
+	call	fprintf
+
+
+# evaluate 'write' arguments
+	movl		-8(%rbp), %edx
+
+# call 'write' using fprintf
+	movq		stderr(%rip), %rax
+	movl		$.LC1, %esi
+	movq		%rax, %rdi
+	movl		$0, %eax
+	call	fprintf
+
+# Evaluating Procedure Argsuments
+	movq		$4, %r8
+	pushq		%r8
+	movq		$2, %r8
+	pushq		%r8
+
 # call procedure 'foo'
 	call	foo
 
-
-# Assignment Evaluation
-	movq		$6, %r8
-# assign gencode
-	mov		%r8, -8(%rbp)
 	movl		$0, %eax
 	leave
 	ret

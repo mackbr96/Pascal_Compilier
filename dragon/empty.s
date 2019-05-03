@@ -5,7 +5,15 @@
 foo:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	movl	$5, %eax
+	movl	%edi, -4(%rbp)
+	movl	%esi, -8(%rbp)
+	movl	%edx, -12(%rbp)
+	movl	%ecx, -16(%rbp)
+	movl	%r8d, -20(%rbp)
+	movl	%r9d, -24(%rbp)
+	movl	-8(%rbp), %eax
+	movl	-4(%rbp), %edx
+	addl	%edx, %eax
 	popq	%rbp
 	ret
 	.size	foo, .-foo
@@ -15,9 +23,19 @@ main:
 	pushq	%rbp
 	movq	%rsp, %rbp
 	subq	$16, %rsp
-	movl	$0, %eax
+	movl	$9, -4(%rbp)
+	movl	$8, -8(%rbp)
+	movl	-4(%rbp), %r8d
+	movl	-8(%rbp), %edi
+	movl	-4(%rbp), %ecx
+	movl	-8(%rbp), %edx
+	movl	-8(%rbp), %esi
+	movl	-4(%rbp), %eax
+	movl	%r8d, %r9d
+	movl	%edi, %r8d
+	movl	%eax, %edi
 	call	foo
-	movl	%eax, -4(%rbp)
+	movl	%eax, -12(%rbp)
 	leave
 	ret
 	.size	main, .-main

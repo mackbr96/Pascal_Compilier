@@ -186,6 +186,7 @@ void main_header_gencode() {
 	fprintf(outfile, "\tpushq\t\t%rbp\n");
 
 
+
 	//fprintf(outfile, "\tsub\t\trsp, %d\n", 8*(top_table()->num_locals));
 
 }
@@ -252,11 +253,41 @@ void call_procedure_gencode(tree* t) {
 	else
 	{	
 		char* name = strdup(t->leftNode->attribute.sval);
+		fprintf(outfile, "# Evaluating Procedure Argsuments\n");
+
+		node* n = searchScopeAll(top_scope, name);
+		tree* args = t -> rightNode;
+
+		for(int i = 0; i < n -> args; i++) {
+			genCode(args->rightNode);
+			fprintf(outfile, "\tpushq\t\t%s\n", getReg(top(rstack)));
+			args = args -> leftNode;
+		}
+
 		fprintf(outfile, "\n# call procedure '%s'\n", name);
 		fprintf(outfile, "\tcall\t%s\n\n", name);
 	}
 }
 
+void print_args(tree* t, int args) {
+	if(t -> type == EMPTY) {
+		return;
+	}
+	
+	else if(t -> type == ID) {
+		fprintf(outfile, "\tmovq\t\t\%d(%rbp), %s\n", (16 + (offBase * 8)), getReg(top(rstack)));
+		fprintf(outfile, "\tmovq\t\t%s, %s\n", getReg(top(rstack)), getValue(t));
+		offBase = offBase + 1;
+	}
+
+	else {
+		print_args(t->leftNode, args);
+		print_args(t->rightNode, args);
+	}
+
+
+
+}
 
 void start_if(tree* t) {
 	fprintf(outfile, "# Start IF\n");
@@ -307,8 +338,9 @@ void function_header(tree* t) {
 	fprintf(outfile, "%s:\n", name_ptr->attribute.sval);
 	fprintf(outfile, "\tpushq\t\t%rbp\n");
 	fprintf(outfile, "\tmovq\t\t%rsp, %rbp\n");
-
-	fprintf(outfile, "\tpushq\t\t$0\n");
+	offBase = 0;
+	print_args(t->rightNode, searchScopeAll(top_scope, name_ptr->attribute.sval) -> args);
+	offBase = 0;
 
 
 }
