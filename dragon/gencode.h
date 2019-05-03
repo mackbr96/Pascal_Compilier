@@ -15,11 +15,18 @@ void file_footer_gencode();
 void add_io_gencode();
 void file_header_gencode();
 
+void function_header(tree* t);
+void function_footer(tree* t);
+
+
 void gencode(tree*);
 
 void start_if(tree*);
 void mid_if(tree*);
 void end_if(tree*);
+
+void start_while(tree*);
+void end_while(tree*);
 
 
 char* var_to_assembly(char* name);

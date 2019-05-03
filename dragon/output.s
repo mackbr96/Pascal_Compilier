@@ -10,35 +10,16 @@
 	.text
 	.global	main
 	.type main, @function
-main:
+# FUNCTION HEADER
+foo:
 	pushq		%rbp
 	movq		%rsp, %rbp
 	pushq		$0
-	pushq		%rbp
 
 # Assignment Evaluation
-	movq		$6, %r8
+	movq		$10, %r8
 # assign gencode
 	mov		%r8, -16(%rbp)
-# Start IF
-	movq		-16(%rbp), %r8
-# Printing operation
-	cmpq		$8, %r8
-	jge		.L2
-
-# Assignment Evaluation
-	movq		$1, %r8
-# assign gencode
-	mov		%r8, -16(%rbp)
-	jmp		.L4
-.L2:
-
-# Assignment Evaluation
-	movq		$2, %r8
-# assign gencode
-	mov		%r8, -16(%rbp)
-# END IF
-.L4:
 
 # evaluate 'write' arguments
 	movl		-16(%rbp), %edx
@@ -50,6 +31,24 @@ main:
 	movl		$0, %eax
 	call	fprintf
 
+# Function Footer
+	movq		%rbp, %rsp
+	popq		%rbp
+	ret
+main:
+	pushq		%rbp
+	movq		%rsp, %rbp
+	pushq		$0
+	pushq		%rbp
+
+# call procedure 'foo'
+	call	foo
+
+
+# Assignment Evaluation
+	movq		$6, %r8
+# assign gencode
+	mov		%r8, -8(%rbp)
 	movl		$0, %eax
 	leave
 	ret

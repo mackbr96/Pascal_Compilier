@@ -1,10 +1,11 @@
 program main(input, output);
 var x: integer;
+procedure foo(x : integer);
+	begin
+		x := 10;
+		write(x)
+	end;
 begin
-	x := 6;
-	if( x < 8 ) then
-		x := 1
-	else
-		x := 2;
-	write(x)
+	foo(x);
+	x := 6
 end.

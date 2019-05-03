@@ -14,10 +14,10 @@
 #define PLUS 270
 #define MINUS 271
 #define OR 272
-#define MULOP 273
-#define STAR 274
-#define SLASH 275
-#define AND 276
+#define STAR 273
+#define SLASH 274
+#define AND 275
+#define MULOP 276
 #define NOT 277
 #define ID 278
 #define INUM 279

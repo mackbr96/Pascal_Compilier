@@ -171,7 +171,7 @@ void print_code(char* opval, char* right, char* left) {
 
 		else {
 			fprintf(stderr, "You forgot to add %s in Print Code\n", opval);
-			exit(0);
+			//exit(0);
 		}
 	}
 
@@ -248,7 +248,12 @@ void call_procedure_gencode(tree* t) {
 		fprintf(outfile, "\tmovl\t\t$.LC0, %%edi\n");
 		fprintf(outfile, "\tmovl\t\t$0, %%eax\n");
 		fprintf(outfile, "\tcall __isoc99_scanf\n");
-	
+	}
+	else
+	{	
+		char* name = strdup(t->leftNode->attribute.sval);
+		fprintf(outfile, "\n# call procedure '%s'\n", name);
+		fprintf(outfile, "\tcall\t%s\n\n", name);
 	}
 }
 
@@ -268,3 +273,52 @@ void end_if(tree* t) {
 	L = L + 6;
 
 }
+
+void start_while(tree* t) {
+	fprintf(outfile, "# Start while\n");
+	fprintf(outfile, ".L%d:\n", L);
+	L = L + 2;
+	genCode(t);
+	L = L -2;
+
+}
+
+void end_while(tree* t) {
+	
+	fprintf(outfile, "# End While\n");
+	fprintf(outfile, "\tjmp\t\t .L%d\n", L);
+	fprintf(outfile, ".L%d:\n", L+2);
+	
+}
+
+
+void function_header(tree* t) {
+
+	tree* name_ptr = t->leftNode;
+	if(name_ptr->type == PAROP)
+		name_ptr = name_ptr->leftNode;
+	if(name_ptr->type != ID)
+	{
+		fprintf(stderr, "\nERROR, LINE %d: function name expected.\n", yylineno);
+		exit(1);
+	}
+
+	fprintf(outfile, "# FUNCTION HEADER\n");
+	fprintf(outfile, "%s:\n", name_ptr->attribute.sval);
+	fprintf(outfile, "\tpushq\t\t%rbp\n");
+	fprintf(outfile, "\tmovq\t\t%rsp, %rbp\n");
+
+	fprintf(outfile, "\tpushq\t\t$0\n");
+
+
+}
+
+void function_footer(tree* t) {
+	fprintf(outfile, "# Function Footer\n");
+	fprintf(outfile, "\tmovq\t\t%rbp, %rsp\n");
+	fprintf(outfile, "\tpopq\t\t%rbp\n");
+	fprintf(outfile, "\tret\n");
+
+}
+
+

@@ -53,7 +53,7 @@ whitespace [ \t]+
 
 
 "*"			{if(DEBUG == 1) fprintf(stderr, "[MULOP:%d]", STAR);  yylval.sval = strdup(yytext); return MULOP;}
-"and"			{if(DEBUG == 1) fprintf(stderr, "[MULOP:%d]", AND);  yylval.sval = strdup(yytext); return MULOP;}
+"and"			{if(DEBUG == 1) fprintf(stderr, "[MULOP:%d]", AND);  yylval.sval = strdup(yytext); return RELOP;}
 "array"		{if(DEBUG == 1) fprintf(stderr, "[ARRAY]");  yylval.sval = strdup(yytext); return ARRAY;}
 
 "("			{if(DEBUG == 1) fprintf(stderr, "{(}"); return '(';}

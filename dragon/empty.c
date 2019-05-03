@@ -1,10 +1,9 @@
 #include <stdio.h>
+
+int foo() {
+	return 5;
+}
+
 int main() {
-	int x = 5;
-	if( x > 5) {
-		x = 1;
-	}
-	else {
-		x = 2;
-	}
+	int x = foo();
 }

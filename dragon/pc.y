@@ -44,7 +44,8 @@ extern void makeParms(scope*, tree*, tree* );
 
 %token  PLUS MINUS OR
 
-%token <sval> MULOP STAR SLASH AND
+%token <sval> STAR SLASH AND
+%token <opval> MULOP
 %token <opval> NOT
 %token <sval> ID
 %token <ival> INUM 
@@ -109,9 +110,9 @@ start
 
 
 program 
-	: PROGRAM id {add_io_gencode(); main_header_gencode();} '(' identifier_list ')'  ';' 
+	: PROGRAM id {add_io_gencode();} '(' identifier_list ')'  ';' 
 	declarations
-	subprogram_declarations
+	subprogram_declarations { main_header_gencode(); }
 	compound_statement
 	'.'
 	{
@@ -121,7 +122,7 @@ program
 		$$ = strTree(PROGRAM, "head body",
 					opTree(PAROP, "()", $2, $5),
 					strTree(PROGRAM, "decls compound_stmt",
-						strTree(PROGRAM, "decls sub_decls", $8, $9), $10 
+						strTree(PROGRAM, "decls sub_decls", $8, $9), $11 
 					)
 				);
 
@@ -172,17 +173,18 @@ subprogram_declarations
 	;
 
 subprogram_declaration
-	: subprogram_head declarations subprogram_declarations compound_statement
+	: subprogram_head declarations subprogram_declarations { function_header($1);} compound_statement
 		{
 
-			checkFunction(top_scope, $1, $4);
+			checkFunction(top_scope, $1, $5);
 			//check the function for return statements here
 			$$ = opTree(LISTOP, "_", $1, 
 					opTree(LISTOP, "_", $2, 
-						opTree(LISTOP, "_", $3, $4)
+						opTree(LISTOP, "_", $3, $5)
 					)
 				 );
-				top_scope = pop_scope(top_scope);
+			top_scope = pop_scope(top_scope);
+			function_footer($1);
 		}
 	| 
 		{
@@ -270,10 +272,11 @@ statement
 			enforce_type(top_scope, $2, BOOL);
 			end_if($8);
 		}
-	| WHILE expression DO statement
+	| WHILE expression {start_while($2);} DO statement
 		{
-			$$ = strTree(WHILE, "while do", $2, $4);
+			$$ = strTree(WHILE, "while do", $2, $5);
 			enforce_type(top_scope, $2, BOOL);	
+			end_while($5);
 		}
 	| FOR variable ASSIGNOP expression TO expression DO statement
 		{
