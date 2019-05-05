@@ -1,0 +1,22 @@
+program main(input, output);
+var x: integer;
+var y : integer;
+procedure foo(x : integer; y : integer);
+	var z : integer;
+	begin
+		write(x);
+		if(x > 0) then
+			foo(x-1, y)
+		else
+			write(x)
+	end;
+function boo(x : integer; y : integer) : integer;
+	begin
+		boo := x + 1
+	end;
+begin
+	x := 10;
+	y := 20;
+	x := boo(x,y);
+	write(x)
+end.

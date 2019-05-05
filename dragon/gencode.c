@@ -48,9 +48,15 @@ char* getValue(tree* n)
 			return strdup(str);
 		
 		case ID:
-			return var_to_assembly(n->attribute.sval);
-		case PAROP: // function call
-			return strdup("rax");
+			if(searchScopeAll(top_scope,n -> attribute.sval) -> type == FUNCTION) {
+				return strdup("%rax");
+			}
+			else {
+				return var_to_assembly(n->attribute.sval);
+			}
+		case PAROP:
+			return strdup("%rax");
+			
 		default:
 			fprintf(stderr, "Error unkown case in getVale\n");
 			exit(0);
@@ -59,20 +65,51 @@ char* getValue(tree* n)
 
 
 char* var_to_assembly(char* name) {
-	node* n = searchScopeAll(top_scope, name);
+	node* n = searchScope(top_scope, name);
+	scope* top = top_scope;
+	char* reg = "%rbp";
+	if(n == NULL) {
+		
+	while(searchScope(top, name) == NULL) {
+		top = top -> next;
+	}
+		n = searchScope(top, name);
+		reg = "%rcx";
+	}
 	int offset = n -> offset;
-	int base = top_scope -> varNum;	
-	fprintf(stderr, "Offet = %d base = %d\n", offset, base);
+	int base = top -> varNum;
+	
+	if(offset <= base) {
+		int tmp = offset;
+		offset = base;
+		base = tmp;
+	}
+
+	fprintf(stderr, "NAME OF SCOPE %s\n", top->name);
+	fprintf(stderr, "OFFSET %d BAE %d\n", offset, base);
 	char str[20];
-	sprintf(str, "(%rbp)");
+	sprintf(str, "(%s)", reg);
 	char num[50];
-	sprintf(num, "%d", (offset-base + 2)*8);
-	fprintf(stderr, "NUM IS %s\n", num); 	// store above base pointer,
+	sprintf(num, "%d", (offset-base + 2)*8 );
 	strcat(num, str);
 	char final[150];
 	sprintf(final, "-");
 	strcat(final, num);						// leaving room for return value
 	return strdup(final);
+
+
+}
+
+
+void nonlocal_var(char* name) {
+	if(searchScope(top_scope, name) != NULL) {
+		return;
+	}
+
+	fprintf(outfile, "# Looking for nonlocal Variable\n");
+	
+
+	fprintf(outfile, "# end of nonlocal var\n");
 }
 
 void genCode(tree* n) {
@@ -82,7 +119,7 @@ void genCode(tree* n) {
 	if(empty(n)) 
 		return;
 
-	if(leafNode(n) && n -> ershov_num == 1) {
+	if(leafNode(n) && n -> ershov_num == 1 || n -> type == PAROP) {
 		fprintf(stderr, "1 gencode\n");
 		//print mov name , top(rstack)
 		print_code("mov", getReg(top(rstack)), getValue(n));
@@ -110,8 +147,6 @@ void genCode(tree* n) {
 	}
 	else if(1 <= n->rightNode->ershov_num <= n->leftNode->ershov_num && n->rightNode->ershov_num < r) {
 		fprintf(stderr, "4 gencode\n");
-		fprintf(stderr, "Type: %s\n", typeToString(n->type));
-		fprintf(stderr, "number: %d\n", n->ershov_num);
 		genCode(n->leftNode);
 		int R = pop(rstack);
 		genCode(n->rightNode);
@@ -132,6 +167,13 @@ void genCode(tree* n) {
 char* assign_gencode(tree* n) {
 	fprintf(outfile, "\n# Assignment Evaluation\n");
 	genCode(n->rightNode);
+	if(!strcmp(n->leftNode->attribute.sval, top_scope -> name))	{
+		fprintf(outfile, "\n# return statement\n");
+		fprintf(outfile, "\tmovq\t\t%s, -8(%rbp)\n", getReg(top(rstack)));
+		//fprintf(outfile, "\tjmp\t\t.L%d\n", top_table()->assembly_label);
+	}
+
+
 	fprintf(outfile, "# assign gencode\n");
 	fprintf(outfile, "\tmov\t\t%s, %s\n", getReg(top(rstack)), getValue(n->leftNode));
 }
@@ -184,6 +226,7 @@ void main_header_gencode() {
 	fprintf(outfile, "\tmovq\t\t%rsp, %rbp\n");
 	fprintf(outfile, "\tpushq\t\t$0\n");
 	fprintf(outfile, "\tpushq\t\t%rbp\n");
+	fprintf(outfile, "\tmovq\t\t%rbp, %rcx\n");
 
 
 
@@ -252,10 +295,13 @@ void call_procedure_gencode(tree* t) {
 	}
 	else
 	{	
-		char* name = strdup(t->leftNode->attribute.sval);
 		fprintf(outfile, "# Evaluating Procedure Argsuments\n");
 
 		node* n = searchScopeAll(top_scope, name);
+		if( n == NULL) {
+			fprintf(stderr, "FUNCTION NOT FOUND name = %s\n", name);
+			exit(0);
+		}
 		tree* args = t -> rightNode;
 
 		for(int i = 0; i < n -> args; i++) {
@@ -264,8 +310,12 @@ void call_procedure_gencode(tree* t) {
 			args = args -> leftNode;
 		}
 
+		fprintf(outfile, "\tmovq\t\t%rcx, %rbx\n");
+		fprintf(outfile, "\tmovq\t\t%rbp, %rcx\n");
+
 		fprintf(outfile, "\n# call procedure '%s'\n", name);
 		fprintf(outfile, "\tcall\t%s\n\n", name);
+		fprintf(outfile, "\tmovq\t\t%rbx, %rcx\n");
 	}
 }
 
@@ -275,7 +325,7 @@ void print_args(tree* t, int args) {
 	}
 	
 	else if(t -> type == ID) {
-		fprintf(outfile, "\tmovq\t\t\%d(%rbp), %s\n", (16 + (offBase * 8)), getReg(top(rstack)));
+		fprintf(outfile, "\tmovq\t\t\%d(%rbp), %s\n", (16 + (offBase * 8) +8), getReg(top(rstack)));
 		fprintf(outfile, "\tmovq\t\t%s, %s\n", getReg(top(rstack)), getValue(t));
 		offBase = offBase + 1;
 	}
@@ -338,6 +388,7 @@ void function_header(tree* t) {
 	fprintf(outfile, "%s:\n", name_ptr->attribute.sval);
 	fprintf(outfile, "\tpushq\t\t%rbp\n");
 	fprintf(outfile, "\tmovq\t\t%rsp, %rbp\n");
+	fprintf(outfile, "\tsubq\t\t$%d, %rsp\n", searchScopeAll(top_scope, name_ptr->attribute.sval) -> args * 16 + 16);
 	offBase = 0;
 	print_args(t->rightNode, searchScopeAll(top_scope, name_ptr->attribute.sval) -> args);
 	offBase = 0;
@@ -347,6 +398,7 @@ void function_header(tree* t) {
 
 void function_footer(tree* t) {
 	fprintf(outfile, "# Function Footer\n");
+	fprintf(outfile, "\tmovq\t\t-8(%rbp), %rax\n");
 	fprintf(outfile, "\tmovq\t\t%rbp, %rsp\n");
 	fprintf(outfile, "\tpopq\t\t%rbp\n");
 	fprintf(outfile, "\tret\n");

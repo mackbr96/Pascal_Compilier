@@ -1,0 +1,17 @@
+    x   store values
+    x   call functions
+    x   pass arguments
+    x   return values
+    x   expressions
+    x   recurtion
+    x   if loops
+    x   while loops
+    
+
+        Non local Vaiables
+        for loops
+        arrays
+            access
+            setting values
+        floating point
+        divion

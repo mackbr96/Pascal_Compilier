@@ -14,6 +14,7 @@ typedef struct scope {
 
 	node *table[HASH_SIZE];
 	struct scope *next;
+	struct scope *parent;
 } scope;
 
 

@@ -1,13 +1,19 @@
 program main(input, output);
-var x: integer;
-procedure foo(x : integer; y : integer);
+var p: integer;
+var y : integer;
+procedure boo(x : integer; y : integer);
+	var z : integer;
+	procedure foo(x : integer);
+		begin
+			p := x + 10
+		end;
 	begin
-		write(x);
-		write(x)
+		write(p);
+		z := 10;
+		foo(z);
+		p := p + z
 	end;
 begin
-	x := 10;
-	write(x);
-	write(x);
-	foo(2, 4)
+	p := 10;
+	boo(10,2)
 end.

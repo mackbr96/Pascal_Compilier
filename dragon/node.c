@@ -67,6 +67,7 @@ scope *push_scope(scope* top, char* name, int type) {
     p->name = strdup(name);
     p -> type = type;
     p->next = top;
+	p->parent = top;
     return p;
 }
 
@@ -335,11 +336,15 @@ node *insertScope(scope* top, char* name) {
         strcat(result, name);
         yyerror(result);
     }
+
+	
+
     int index = hashpjw(name);
     node *tmp = top -> table[index];
     top->table[index] = insertNode(tmp, name);
-	 top -> varNum++;
-	 top->table[index]->offset = top->varNum;
+	top -> varNum++;
+	top->table[index]->offset = top->varNum;
+	fprintf(stderr, "Scope %s update varNum %d off set %d\n", top->name, top->varNum, top->table[index]->offset);
     return top->table[index];
 
 }

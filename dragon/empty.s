@@ -1,4 +1,11 @@
 	.file	"empty.c"
+	.globl	outside
+	.data
+	.align 4
+	.type	outside, @object
+	.size	outside, 4
+outside:
+	.long	5
 	.text
 	.globl	foo
 	.type	foo, @function
@@ -6,13 +13,8 @@ foo:
 	pushq	%rbp
 	movq	%rsp, %rbp
 	movl	%edi, -4(%rbp)
-	movl	%esi, -8(%rbp)
-	movl	%edx, -12(%rbp)
-	movl	%ecx, -16(%rbp)
-	movl	%r8d, -20(%rbp)
-	movl	%r9d, -24(%rbp)
-	movl	-8(%rbp), %eax
-	movl	-4(%rbp), %edx
+	movl	outside(%rip), %edx
+	movl	-4(%rbp), %eax
 	addl	%edx, %eax
 	popq	%rbp
 	ret
@@ -24,18 +26,10 @@ main:
 	movq	%rsp, %rbp
 	subq	$16, %rsp
 	movl	$9, -4(%rbp)
-	movl	$8, -8(%rbp)
-	movl	-4(%rbp), %r8d
-	movl	-8(%rbp), %edi
-	movl	-4(%rbp), %ecx
-	movl	-8(%rbp), %edx
-	movl	-8(%rbp), %esi
 	movl	-4(%rbp), %eax
-	movl	%r8d, %r9d
-	movl	%edi, %r8d
 	movl	%eax, %edi
 	call	foo
-	movl	%eax, -12(%rbp)
+	movl	%eax, -8(%rbp)
 	leave
 	ret
 	.size	main, .-main

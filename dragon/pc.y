@@ -103,7 +103,7 @@ start
 	: program
 		{ 
 			print_scope(top_scope);
-			printTree($1, 0);
+			//printTree($1, 0);
 			fprintf(stderr, "\n");
 		}
 	;
@@ -183,8 +183,9 @@ subprogram_declaration
 						opTree(LISTOP, "_", $3, $5)
 					)
 				 );
-			top_scope = pop_scope(top_scope);
 			function_footer($1);
+			top_scope = pop_scope(top_scope);
+			
 		}
 	| 
 		{
@@ -378,6 +379,7 @@ factor
 			checkArgs(top_scope, searchScopeAll(top_scope, $1->attribute.sval), $3);
 			checkID(top_scope, $1->attribute.sval);
 			$$ = opTree(PAROP, "()", $1, $3);
+			call_procedure_gencode($$);
 			 
 		}
 	| inum
@@ -426,6 +428,8 @@ int main() {
 	offBase = 0;
 	outfile = fopen("output.s", "w");
 	top_scope = mkscope();
+	top_scope->name = "main";
+	top_scope -> parent = top_scope;
 	insertScope(top_scope, "read");
 	updateProcedure(top_scope, strTree(PROCEDURE, "read", emptyTree(), emptyTree()),  1);
 	insertScope(top_scope, "write");

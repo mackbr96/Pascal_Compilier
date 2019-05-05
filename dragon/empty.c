@@ -1,11 +1,11 @@
 #include <stdio.h>
+int outside = 5;
 
-int foo(int x, int y, int a, int b, int c, int d) {
-	return x + y;
+int foo(int x) {
+	return outside + x;
 }
 
 int main() {
 	int y = 9;
-	int z = 8;
-	int x = foo(y,z, z, y,z,y);
+	int x = foo(y);
 }
