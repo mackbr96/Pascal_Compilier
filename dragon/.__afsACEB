@@ -1,21 +1,23 @@
 program main(input, output);
 var p: integer;
 var y : integer;
-
-var j : integer;
 procedure boo(x : integer; y : integer);
 	var z : integer;
-procedure foo(x : integer);
-		begin
-			write(p);
-			p := p + x
-		end;
 	begin
-		write(x);
-		foo(x)
+		write(p);
+		p := 90;
+		write(p);
+		write(p)
+	end;
+procedure ben(x : integer);
+	begin
+		p := 50
 	end;
 begin
-	p := 10;
+	p := 100;
+	write(p);
 	boo(80,2);
+	writie(p);
+	ben(9);
 	write(p)
 end.

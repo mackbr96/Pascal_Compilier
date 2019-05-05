@@ -342,9 +342,9 @@ node *insertScope(scope* top, char* name) {
     int index = hashpjw(name);
     node *tmp = top -> table[index];
     top->table[index] = insertNode(tmp, name);
-	top -> varNum++;
-	top->table[index]->offset = top->varNum;
-	fprintf(stderr, "Scope %s update varNum %d off set %d\n", top->name, top->varNum, top->table[index]->offset);
+	 top -> varNum++;
+	 top->table[index]->offset = top->varNum;
+	 fprintf(stderr, "Scope %s update varNum %d off set %d\n", top->name, top->varNum, top->table[index]->offset);
     return top->table[index];
 
 }

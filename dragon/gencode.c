@@ -28,7 +28,9 @@
    |       r15       | 0
 -------------------------		
             .
-   			.
+   ecx -> for rembering static parent
+	rcx -> for return values
+
 			.
 */
 
@@ -52,6 +54,7 @@ char* getValue(tree* n)
 				return strdup("%rax");
 			}
 			else {
+				nonlocal_var(n->attribute.sval);
 				return var_to_assembly(n->attribute.sval);
 			}
 		case PAROP:
@@ -73,24 +76,28 @@ char* var_to_assembly(char* name) {
 	while(searchScope(top, name) == NULL) {
 		top = top -> next;
 	}
+		
 		n = searchScope(top, name);
-		reg = "%rcx";
+		reg = "%rbx";
 	}
 	int offset = n -> offset;
 	int base = top -> varNum;
 	
-	if(offset <= base) {
-		int tmp = offset;
-		offset = base;
-		base = tmp;
-	}
-
 	fprintf(stderr, "NAME OF SCOPE %s\n", top->name);
 	fprintf(stderr, "OFFSET %d BAE %d\n", offset, base);
+	fprintf(outfile, "# ARG NUM %d\n", base);
+
+	// if(offset <= base) {
+	// 	int tmp = offset;
+	// 	offset = base;
+	// 	base = tmp;
+	// }
+
+	
 	char str[20];
 	sprintf(str, "(%s)", reg);
 	char num[50];
-	sprintf(num, "%d", (offset-base + 2)*8 );
+	sprintf(num, "%d", (offset+ 2)*8 );
 	strcat(num, str);
 	char final[150];
 	sprintf(final, "-");
@@ -106,11 +113,29 @@ void nonlocal_var(char* name) {
 		return;
 	}
 
-	fprintf(outfile, "# Looking for nonlocal Variable\n");
-	
+	fprintf(outfile, "#Looking for nonlocal var\n");
 
-	fprintf(outfile, "# end of nonlocal var\n");
+	int scopes_back = 0;
+	scope* top = top_scope;
+	
+	while(searchScope(top, name) == NULL)
+	{
+		scopes_back++;
+		top = top -> next;
+	}
+
+	// traverse back correct number of scopes to access variable 
+	fprintf(outfile, "\tmovq -8(%rbp), %rbx\n");
+	for(int i = 0; i < scopes_back - 1; i++)
+	{
+		fprintf(outfile, "\tmovq\t\t-8(%rbx), %rbx\n");
+	}
+
+	fprintf(outfile, "# end nonlocal variable\n");
+
 }
+
+
 
 void genCode(tree* n) {
 	static int r = 10;
@@ -153,7 +178,7 @@ void genCode(tree* n) {
 		print_code(n->attribute.opval, getReg(top(rstack)), getReg(R)); 
 		push(R, rstack);
 	}
-	else {
+	else { //case 4 but we dont do that here
 		fprintf(stderr, "5 gencode\n");
 		genCode(n->rightNode);
 		//T = pop(tstack);
@@ -224,9 +249,10 @@ void main_header_gencode() {
 	fprintf(outfile, "main:\n");
 	fprintf(outfile, "\tpushq\t\t%rbp\n");
 	fprintf(outfile, "\tmovq\t\t%rsp, %rbp\n");
+	fprintf(outfile, "\tsubq\t\t$%d, %rsp\n", top_scope -> varNum * 8 + 16);
 	fprintf(outfile, "\tpushq\t\t$0\n");
 	fprintf(outfile, "\tpushq\t\t%rbp\n");
-	fprintf(outfile, "\tmovq\t\t%rbp, %rcx\n");
+	fprintf(outfile, "\tmovq\t\t%rbp, %rbx\n");
 
 
 
@@ -259,7 +285,7 @@ void add_io_gencode() {
 
 void file_footer_gencode() {
 	fprintf(outfile, "\t.ident\t\"GCC: (Ubuntu 5.4.0-6ubuntu1~16.04.4) 5.4.0 20160609\"\n");
-	fprintf(outfile, "\n\t.section\t.note.GNU-stack,\"\",@progbits\n");
+	fprintf(outfile, "\t.section\t.note.GNU-stack,\"\",@progbits\n");
 }
 
 
@@ -276,7 +302,8 @@ void call_procedure_gencode(tree* t) {
 		tree* var_ptr = t->rightNode->rightNode;
 		char* var_name = t->rightNode->rightNode->attribute.sval;
 		fprintf(outfile, "\n# evaluate 'write' arguments\n");
-		fprintf(outfile, "\tmovl\t\t%s, %%edx\n", var_to_assembly(var_name));
+		//fprintf(outfile, "\tmovl\t\t%s, %%edx\n", var_to_assembly(var_name));
+		fprintf(outfile, "\tmovl\t\t%s, %%edx\n", getValue(t->rightNode->rightNode));
 		fprintf(outfile, "\n# call 'write' using fprintf\n");
 		fprintf(outfile, "\tmovq\t\tstderr(%rip), %rax\n");
 		fprintf(outfile, "\tmovl\t\t$.LC1, %%esi\n");
@@ -310,12 +337,10 @@ void call_procedure_gencode(tree* t) {
 			args = args -> leftNode;
 		}
 
-		fprintf(outfile, "\tmovq\t\t%rcx, %rbx\n");
-		fprintf(outfile, "\tmovq\t\t%rbp, %rcx\n");
+		fprintf(outfile, "\tmovq\t\t%rbp, %rbx\n");
 
 		fprintf(outfile, "\n# call procedure '%s'\n", name);
 		fprintf(outfile, "\tcall\t%s\n\n", name);
-		fprintf(outfile, "\tmovq\t\t%rbx, %rcx\n");
 	}
 }
 
@@ -325,7 +350,7 @@ void print_args(tree* t, int args) {
 	}
 	
 	else if(t -> type == ID) {
-		fprintf(outfile, "\tmovq\t\t\%d(%rbp), %s\n", (16 + (offBase * 8) +8), getReg(top(rstack)));
+		fprintf(outfile, "\tmovq\t\t\%d(%rbp), %s\n", (16 + (offBase * 8)), getReg(top(rstack)));
 		fprintf(outfile, "\tmovq\t\t%s, %s\n", getReg(top(rstack)), getValue(t));
 		offBase = offBase + 1;
 	}
@@ -392,6 +417,7 @@ void function_header(tree* t) {
 	offBase = 0;
 	print_args(t->rightNode, searchScopeAll(top_scope, name_ptr->attribute.sval) -> args);
 	offBase = 0;
+	fprintf(outfile, "\tmovq\t\t%rbx, -8(%rbp)\n");
 
 
 }

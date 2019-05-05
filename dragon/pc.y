@@ -312,6 +312,7 @@ procedure_statement
 		{
 
 			//checkArgs(top_scope, $1, $3);
+			fprintf(stderr, "NAME IS %s", $1->attribute.sval);
 			checkArgs(top_scope, searchScopeAll(top_scope, $1->attribute.sval), $3);
 
 			$$ = opTree(PAROP, "()", $1, $3);

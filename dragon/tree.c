@@ -346,11 +346,12 @@ int countArgs(scope* top, tree* t, int args) {
 
 void checkArgs(scope* top, node* fn, tree* fn_call)
 {
-	types* tmp = fn->arg_types;
 	if(fn == NULL) {
 		fprintf(stderr, "\nERROR Function/Procedure is undeclared on line %d\n", yylineno);
 		exit(0);
 	}
+	types* tmp = fn->arg_types;
+	
 	
 	if(countArgs(top, fn_call, 0) != fn->args) {
 		fprintf(stderr, "Wrong number of args\n");
