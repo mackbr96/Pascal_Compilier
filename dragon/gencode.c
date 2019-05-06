@@ -213,6 +213,12 @@ void print_code(char* opval, char* right, char* left) {
 		fprintf(outfile, "\tsubq\t\t%s, %s\n", left, right);
 	else if(!strcmp(opval, "*"))
 		fprintf(outfile, "\timul\t\t%s, %s\n", left, right);
+	else if(!strcmp(opval, "/")) {
+		fprintf(outfile, "\tmovl\t\t$0, %%edx\n");
+		fprintf(outfile, "\tmovl\t\t%s, %%eax\n", left);
+		fprintf(outfile, "\tmovq\t\t%s, %rcx\n", right);
+		fprintf(outfile, "\tdiv\t\t%rcx\n");
+	}
 	else {
 		if(!strcmp(opval, "=")) {
 			fprintf(outfile, "\tcmpq\t\t%s, %s\n", left, right);
@@ -238,7 +244,7 @@ void print_code(char* opval, char* right, char* left) {
 
 		else {
 			fprintf(stderr, "You forgot to add %s in Print Code\n", opval);
-			//exit(0);
+			exit(0);
 		}
 	}
 
@@ -336,11 +342,29 @@ void call_procedure_gencode(tree* t) {
 			fprintf(outfile, "\tpushq\t\t%s\n", getReg(top(rstack)));
 			args = args -> leftNode;
 		}
+		if(child(name) != 1) {
 
-		fprintf(outfile, "\tmovq\t\t%rbp, %rbx\n");
+			fprintf(outfile, "\tmovq\t\t%rbp, %rbx\n");
+		}
+		else {
+			fprintf(outfile, "\tmovq\t\t-8(%rbp), %rbx\n");
+
+		}
 
 		fprintf(outfile, "\n# call procedure '%s'\n", name);
 		fprintf(outfile, "\tcall\t%s\n\n", name);
+	}
+}
+
+int child(char* name) {
+	if(searchScope(top_scope, name) != NULL) {
+		return 0;
+	}
+	else if(searchScope(top_scope, name) != NULL && searchScope(top_scope->next, name) != NULL) {
+		return 1;
+	}
+	else {
+		return 1;
 	}
 }
 
@@ -397,7 +421,27 @@ void end_while(tree* t) {
 	
 }
 
+void start_for(tree* var, tree* t1, tree* t2) {
+	fprintf(outfile, "\n# start for\n");
+	genCode(t1);
+	fprintf(outfile, "\tmovq\t\t%s, %s\n", getReg(top(rstack)), getValue(var) );
 
+	genCode(t2);
+	fprintf(outfile, "\tmovq\t\t%s, %rbx\n", getReg(top(rstack)));
+
+	fprintf(outfile, ".L%d:\n", L);
+	fprintf(outfile, "\tcmpq\t\t%rbx, %s\n", getValue(var));
+	fprintf(outfile, "\tjg\t\t.L%d\n", L+2);
+	fprintf(outfile, "\t# end for\n\n# start do");
+}
+
+void end_for(tree* var) {
+	fprintf(outfile, "\taddq\t\t$1, %s\n", getValue(var));
+	fprintf(outfile, "\tjmp\t\t.L%d\n", L);
+	fprintf(outfile, ".L%d:\n", L+2);
+	L += 2;
+	fprintf(outfile, "\t# end for-do\n");
+}
 void function_header(tree* t) {
 
 	tree* name_ptr = t->leftNode;

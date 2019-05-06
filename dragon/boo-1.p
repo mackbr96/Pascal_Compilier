@@ -11,11 +11,19 @@ procedure foo(x : integer);
 			p := p + x
 		end;
 	begin
-		write(x);
-		foo(x)
+		if( x > 10) then
+			boo(x-1, 5)
+		else
+			foo(10)
+	end;
+function gloo(x : integer) : integer;
+	begin
+		gloo := p + x
 	end;
 begin
 	p := 10;
 	boo(80,2);
-	write(p)
+	write(p);
+	y := gloo(p);
+	write(y)
 end.

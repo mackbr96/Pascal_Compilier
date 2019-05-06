@@ -279,13 +279,14 @@ statement
 			enforce_type(top_scope, $2, BOOL);	
 			end_while($5);
 		}
-	| FOR variable ASSIGNOP expression TO expression DO statement
+	| FOR variable ASSIGNOP expression TO expression DO { start_for($2,$4,$6);}statement
 		{
 			$$ = strTree(FOR, "for",
 					opTree(ASSIGNOP, $3, $2, $4),
-					strTree(TO, "to do", $6, $8));
+					strTree(TO, "to do", $6, $9));
 			sameTypes(top_scope, $2, $4);
 			sameTypes(top_scope, $2, $6);
+			end_for($2);
 		}
 	;
 
@@ -317,6 +318,7 @@ procedure_statement
 
 			$$ = opTree(PAROP, "()", $1, $3);
 			checkID(top_scope, $1->attribute.sval);
+			
 		}
 	;
 

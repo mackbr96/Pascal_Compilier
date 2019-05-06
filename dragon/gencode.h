@@ -29,6 +29,8 @@ void end_if(tree*);
 void start_while(tree*);
 void end_while(tree*);
 
+void start_for(tree* var, tree* t1, tree* t2);
+void end_for(tree* var);
 
 char* var_to_assembly(char* name);
 void nonlocal_var(char* name);
@@ -37,4 +39,6 @@ char* assign_gencode(tree* n);
 void print_code(char*, char*, char* );
 void call_procedure_gencode(tree*);
 void getVar(char*);
+
+int child(char* name);
 #endif
