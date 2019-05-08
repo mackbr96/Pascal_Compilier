@@ -176,7 +176,7 @@ int checkTypes(scope *top, tree* t) {
 		case(MULOP):
 		case (ADDOP):
 			if(!strcmp(t->attribute.opval, "+") || !strcmp(t->attribute.opval, "-") ||
-			!strcmp(t->attribute.opval, "*") || !strcmp(t->attribute.opval, "/"))
+			!strcmp(t->attribute.opval, "*") || !strcmp(t->attribute.opval, "/") || !strcmp(t->attribute.opval, "%"))
 			{
 				sameTypes(top, t->leftNode, t->rightNode);
 				if(checkTypes(top, t->leftNode) == BOOL)
@@ -239,24 +239,24 @@ int checkTypes(scope *top, tree* t) {
 void sameTypes(scope* top, tree* left, tree* right) {
 	if(checkTypes(top, left) != checkTypes(top, right)) {
 		if(checkTypes(top, left) == PROCEDURE) {
-			fprintf(stderr, "Error %s is a 'Procedure' and should not return a value on line %d\n", left->attribute.sval, yylineno);
+			fprintf(stderr, "\nError %s is a 'Procedure' and should not return a value on line %d\n", left->attribute.sval, yylineno);
 			exit(0);
 		}
 
 		if(checkTypes(top, right) == PROCEDURE) {
-			fprintf(stderr, "Error %s is a 'Procedure' and should not return a value on line %d\n", right->attribute.sval, yylineno);
+			fprintf(stderr, "\nError %s is a 'Procedure' and should not return a value on line %d\n", right->attribute.sval, yylineno);
 			exit(0);
 		}
 
-		fprintf(stderr, "Type mismatch expected '%s' but got '%s'", typeToString(checkTypes(top, left)), typeToString(checkTypes(top, right)));
-		yyerror("Type mismatch ");
+		fprintf(stderr, "\nERROR Type mismatch expected '%s' but got '%s' on line %d\n", typeToString(checkTypes(top, left)), typeToString(checkTypes(top, right)), yylineno);
+		exit(0);
 	}
 
 
 }
 void checkLocal(scope* top, tree* t) {
 	 if(searchScope(top, t->attribute.sval) == NULL && strcmp(t->attribute.sval,top->name) && top -> type == FUNCTION) {
-		 fprintf(stderr, "Error cannot change non local variable %s in %s on line %d\n", t->attribute.sval, top->name, yylineno);
+		 fprintf(stderr, "\nError cannot change non local variable %s in %s on line %d\n", t->attribute.sval, top->name, yylineno);
 		exit(0);
 	 }
 	 else if(searchScope(top, t->attribute.sval) == NULL) {
@@ -267,7 +267,7 @@ void checkLocal(scope* top, tree* t) {
 
 void enforce_type(scope* top, tree* t, int type) {
 	if(checkTypes(top, t) != type) {
-		fprintf(stderr, "Error: Type mismatch expected '%s' but got '%s' on line: %d\n",  typeToString(type),typeToString(checkTypes(top, t)), yylineno);
+		fprintf(stderr, "\nError: Type mismatch expected '%s' but got '%s' on line: %d\n",  typeToString(type),typeToString(checkTypes(top, t)), yylineno);
 		exit(0);
 	}
 }
@@ -304,12 +304,12 @@ void checkFunction(scope* top, tree* head_ptr, tree* t) {
         char* name = head_ptr->attribute.sval;
 		  tree* test = checkForReturn(name, t);
 			if(test == NULL) {
-				fprintf(stderr, "Error %s is a function and requires a return statement on line %d\n", name, yylineno);
+				fprintf(stderr, "\nError %s is a function and requires a return statement on line %d\n", name, yylineno);
 				exit(0);
 			}
             //enforce_type(top, test, searchScopeAll(top, name)->returnType);
 			if(checkTypes(top, test-> rightNode) != searchScopeAll(top, name)->returnType) {
-				fprintf(stderr, "Error %s returns type '%s' but recivied type '%s'\n", name, typeToString(searchScopeAll(top, name)->returnType), typeToString(checkTypes(top, test-> rightNode)) );
+				fprintf(stderr, "\nError %s returns type '%s' but recivied type '%s'\n", name, typeToString(searchScopeAll(top, name)->returnType), typeToString(checkTypes(top, test-> rightNode)) );
 				exit(0);
 			}
 
@@ -318,7 +318,7 @@ void checkFunction(scope* top, tree* head_ptr, tree* t) {
 		char* name = head_ptr->attribute.sval;
 		  tree* test = checkForReturn(name, t);
 			if(test != NULL) {
-				fprintf(stderr, "Error %s is a 'Procedure' and should not return a value on line %d\n", name, yylineno);
+				fprintf(stderr, "\nError %s is a 'Procedure' and should not return a value on line %d\n", name, yylineno);
 				exit(0);
 			}
 	}

@@ -28,10 +28,17 @@
    |       r15       | 0
 -------------------------		
             .
-   ecx -> for rembering static parent
+   ebx -> for rembering static parent
 	rcx -> for return values
 
 			.
+
+
+
+			Run time stack
+				-8(rbp) -> Static parent and mod divion
+				-16(rbp) start to fill args
+				
 */
 
 
@@ -83,17 +90,6 @@ char* var_to_assembly(char* name) {
 	int offset = n -> offset;
 	int base = top -> varNum;
 	
-	fprintf(stderr, "NAME OF SCOPE %s\n", top->name);
-	fprintf(stderr, "OFFSET %d BAE %d\n", offset, base);
-	fprintf(outfile, "# ARG NUM %d\n", base);
-
-	// if(offset <= base) {
-	// 	int tmp = offset;
-	// 	offset = base;
-	// 	base = tmp;
-	// }
-
-	
 	char str[20];
 	sprintf(str, "(%s)", reg);
 	char num[50];
@@ -101,7 +97,7 @@ char* var_to_assembly(char* name) {
 	strcat(num, str);
 	char final[150];
 	sprintf(final, "-");
-	strcat(final, num);						// leaving room for return value
+	strcat(final, num);		
 	return strdup(final);
 
 
@@ -136,7 +132,6 @@ void nonlocal_var(char* name) {
 }
 
 
-
 void genCode(tree* n) {
 	static int r = 10;
 	
@@ -145,13 +140,11 @@ void genCode(tree* n) {
 		return;
 
 	if(leafNode(n) && n -> ershov_num == 1 || n -> type == PAROP) {
-		fprintf(stderr, "1 gencode\n");
 		//print mov name , top(rstack)
 		print_code("mov", getReg(top(rstack)), getValue(n));
 		//fprintf(outfile, "\tmov\t\t%s, 3\n", getReg(top(rstack))); 
 	}
 	else if(!empty(n->rightNode) && leafNode(n->rightNode) && n -> rightNode -> ershov_num == 0) {
-		fprintf(stderr, "2 gencode\n");
 		genCode(n -> leftNode);
 		fprintf(outfile, "# Printing operation\n");
 		print_code(n->attribute.opval, getReg(top(rstack)),getValue(n->rightNode)); 
@@ -159,27 +152,29 @@ void genCode(tree* n) {
 		//fprintf(outfile, "\tmov\t\rdx, %d\n", n->attribute.ival);
 	}
 	else if(1 <= n->leftNode->ershov_num < n->rightNode->ershov_num && n->leftNode->ershov_num < r) {
-		fprintf(stderr, "3 gencode\n");
 		swap(rstack);
 		genCode(n->rightNode);
 		int R = pop(rstack);
 		genCode(n->leftNode);
 		fprintf(stderr, "Opval %s\n", n->attribute.opval);
+		fprintf(outfile, "# Printing operation\n");
 		print_code(n->attribute.opval, getReg(top(rstack)), getReg(R)); 
 		//print op top(rstack) , R
 		push (R, rstack);
 		swap(rstack);
 	}
 	else if(1 <= n->rightNode->ershov_num <= n->leftNode->ershov_num && n->rightNode->ershov_num < r) {
-		fprintf(stderr, "4 gencode\n");
 		genCode(n->leftNode);
 		int R = pop(rstack);
 		genCode(n->rightNode);
+		fprintf(outfile, "# Printing operation\n");
 		print_code(n->attribute.opval, getReg(top(rstack)), getReg(R)); 
 		push(R, rstack);
+		swap(rstack);
 	}
 	else { //case 4 but we dont do that here
-		fprintf(stderr, "5 gencode\n");
+		fprintf(stderr, "\nCASE 4\n");
+		exit(0);
 		genCode(n->rightNode);
 		//T = pop(tstack);
 		//print MOV top(rstack);
@@ -211,13 +206,26 @@ void print_code(char* opval, char* right, char* left) {
 		fprintf(outfile, "\taddq\t\t%s, %s\n", left, right);
 	else if(!strcmp(opval, "-"))
 		fprintf(outfile, "\tsubq\t\t%s, %s\n", left, right);
-	else if(!strcmp(opval, "*"))
+	else if(!strcmp(opval, "*")) {
 		fprintf(outfile, "\timul\t\t%s, %s\n", left, right);
+	}
 	else if(!strcmp(opval, "/")) {
-		fprintf(outfile, "\tmovl\t\t$0, %%edx\n");
-		fprintf(outfile, "\tmovl\t\t%s, %%eax\n", left);
-		fprintf(outfile, "\tmovq\t\t%s, %rcx\n", right);
-		fprintf(outfile, "\tdiv\t\t%rcx\n");
+		fprintf(outfile, "\tmovq\t\t%s, %rsi\n", left);
+		fprintf(outfile, "\tmovq\t\t%s, %rdi\n", right);
+		fprintf(outfile, "\tcall\t\tdiv\n");
+		fprintf(outfile, "\tmovq\t\t%rax, %s\n", getReg(top(rstack)));
+	}
+	else if(!strcmp(opval, "%")) {
+		fprintf(outfile, "\tmovq\t\t%s, %rsi\n", left);
+		fprintf(outfile, "\tmovq\t\t%s, %rdi\n", right);
+		fprintf(outfile, "\tcall\t\tdiv\n");
+		fprintf(outfile, "\tmovq\t\t-8(%rbp), %s\n", getReg(top(rstack)));
+		int R = pop(rstack);
+		fprintf(outfile, "\tmovq\t\t%rax, -8(%rbp)\n");
+		fprintf(outfile, "\tmovq\t\t-4(%rbp), %s\n", getReg(top(rstack)));
+		push(R, rstack);
+		fprintf(outfile, "\tmovq\t\t%s, -8(%rbp)\n", getReg(top(rstack)));
+		swap(rstack);
 	}
 	else {
 		if(!strcmp(opval, "=")) {
@@ -308,7 +316,6 @@ void call_procedure_gencode(tree* t) {
 		tree* var_ptr = t->rightNode->rightNode;
 		char* var_name = t->rightNode->rightNode->attribute.sval;
 		fprintf(outfile, "\n# evaluate 'write' arguments\n");
-		//fprintf(outfile, "\tmovl\t\t%s, %%edx\n", var_to_assembly(var_name));
 		fprintf(outfile, "\tmovl\t\t%s, %%edx\n", getValue(t->rightNode->rightNode));
 		fprintf(outfile, "\n# call 'write' using fprintf\n");
 		fprintf(outfile, "\tmovq\t\tstderr(%rip), %rax\n");
@@ -388,13 +395,29 @@ void print_args(tree* t, int args) {
 
 }
 
+void start_if_else(tree* t) {
+	fprintf(outfile, "# Start IF\n");
+	genCode(t);
+}
+void mid_if_else(tree* t) {
+	fprintf(outfile, "\tjmp\t\t.L%d\n", L + 2);
+	fprintf(outfile, ".L%d:\n", L);
+	
+}
+void end_if_else(tree* t) {
+	fprintf(outfile, "# END IF\n");
+	fprintf(outfile, ".L%d:\n", L + 2);
+	L = L + 6;
+
+}
+
 void start_if(tree* t) {
 	fprintf(outfile, "# Start IF\n");
 	genCode(t);
 }
 void mid_if(tree* t) {
 	fprintf(outfile, "\tjmp\t\t.L%d\n", L + 2);
-	fprintf(outfile, ".L%d:\n", L);
+	//fprintf(outfile, ".L%d:\n", L);
 	
 }
 void end_if(tree* t) {
@@ -420,6 +443,20 @@ void end_while(tree* t) {
 	fprintf(outfile, ".L%d:\n", L+2);
 	
 }
+
+
+void start_do_while() {
+	fprintf(outfile, "# start do while\n");
+	fprintf(outfile, ".L%d:\n", L);
+}
+void end_do_while(tree* t) {
+	fprintf(outfile, "# End do while\n");
+	L = L + 2;
+	genCode(t);
+	fprintf(outfile, "\tjmp\t\t.L%d\n", L - 2);
+	fprintf(outfile, ".L%d:\n", L);
+}
+
 
 void start_for(tree* var, tree* t1, tree* t2) {
 	fprintf(outfile, "\n# start for\n");

@@ -8,7 +8,7 @@
 #include "node.h"
 #include "y.tab.h"
 
-#define DEBUG 0
+#define DEBUG 1
 
 extern char *strdup( const char * );
 int lineNum = 1;
@@ -49,6 +49,8 @@ whitespace [ \t]+
 "+"			{if(DEBUG == 1) fprintf(stderr, "[ADDOP:%d]", PLUS); yylval.opval = strdup(yytext); return ADDOP;}
 "-"			{if(DEBUG == 1) fprintf(stderr, "[ADDOP:%d]", MINUS); yylval.opval = strdup(yytext); return ADDOP;}
 "/"			{if(DEBUG == 1) fprintf(stderr, "[MULOP:%d]", SLASH); yylval.opval = strdup(yytext); return MULOP;}
+"div"			{if(DEBUG == 1) fprintf(stderr, "[MULOP:%d]", SLASH); yylval.opval = "/"; return MULOP;}
+"mod"			{if(DEBUG == 1) fprintf(stderr, "[MULOP:%d]", SLASH); yylval.opval = "%"; return MULOP;}
 "or"			{if(DEBUG == 1) fprintf(stderr, "[ADDOP:%d]", OR); yylval.opval= strdup(yytext); return ADDOP;}
 
 

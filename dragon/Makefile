@@ -1,5 +1,5 @@
 
-FLAGS = -g -std=c99 -D_XOPEN_SOURCE=700 
+FLAGS = -g -std=c99 -D_XOPEN_SOURCE=700  
 LEX = lex
 YACC = yacc
 

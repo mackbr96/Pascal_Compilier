@@ -22,12 +22,21 @@ void function_footer(tree* t);
 
 void gencode(tree*);
 
+void start_if_else(tree*);
+void mid_if_else(tree*);
+void end_if_else(tree*);
+
 void start_if(tree*);
 void mid_if(tree*);
 void end_if(tree*);
 
+
 void start_while(tree*);
 void end_while(tree*);
+
+void start_do_while();
+void end_do_while(tree*);
+
 
 void start_for(tree* var, tree* t1, tree* t2);
 void end_for(tree* var);

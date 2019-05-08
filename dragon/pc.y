@@ -26,6 +26,8 @@ extern void makeParms(scope*, tree*, tree* );
 
 
 
+
+
 %union {
 	int ival;
 	float fval;
@@ -65,6 +67,7 @@ extern void makeParms(scope*, tree*, tree* );
 %token <sval> REAL
 %token <sval> VAR
 %token <opval> ADDOP
+%token <sval> TO
 
 
 
@@ -78,6 +81,8 @@ extern void makeParms(scope*, tree*, tree* );
 %type <tval> procedure_statement
 %type <tval> variable
 %type <tval> statement
+%type <tval> matched_statement
+%type <tval> unmatched_statement
 %type <tval> statement_list
 %type <tval> optional_statements
 %type <tval> compound_statement
@@ -97,13 +102,20 @@ extern void makeParms(scope*, tree*, tree* );
 %type <tval> rnum
 
 
+
+
+
+%start start
+
+
+
 %%
 
 start
 	: program
 		{ 
 			print_scope(top_scope);
-			//printTree($1, 0);
+			printTree($1, 0);
 			fprintf(stderr, "\n");
 		}
 	;
@@ -251,8 +263,26 @@ statement_list
 		{ $$ = opTree(LISTOP, ";", $1, $3);}
 	;
 
+
 statement
-	: variable ASSIGNOP expression
+	: matched_statement
+		{
+			$$ = $1;
+		} 
+	| unmatched_statement
+		{
+			$$ = $1;
+		}
+	;
+
+matched_statement
+	: IF expression {start_if_else($2);} THEN matched_statement {mid_if_else($5);} ELSE matched_statement
+		{
+			$$ = strTree(IF, "if then-else", $2, strTree(IF, "then else", $5, $8)); 
+			enforce_type(top_scope, $2, BOOL);
+			end_if_else($8);
+		}
+	| variable ASSIGNOP expression
 		{
 			sameTypes(top_scope, $1, $3);
 			checkLocal(top_scope, $1);
@@ -267,19 +297,18 @@ statement
 	| compound_statement
 		{$$ = $1;}
 	
-	| IF expression {start_if($2);} THEN statement {mid_if($5);} ELSE statement
-		{
-			$$ = strTree(IF, "if then-else", $2, strTree(IF, "then else", $5, $8)); 
-			enforce_type(top_scope, $2, BOOL);
-			end_if($8);
-		}
-	| WHILE expression {start_while($2);} DO statement
+	| WHILE expression {start_while($2);} DO matched_statement
 		{
 			$$ = strTree(WHILE, "while do", $2, $5);
 			enforce_type(top_scope, $2, BOOL);	
 			end_while($5);
 		}
-	| FOR variable ASSIGNOP expression TO expression DO { start_for($2,$4,$6);}statement
+	| DO {start_do_while();} matched_statement  WHILE expression
+		{
+			$$ = strTree(WHILE, "do while", $5, $3);
+			end_do_while($5);
+		}
+	| FOR variable ASSIGNOP expression TO expression DO { start_for($2,$4,$6);} matched_statement
 		{
 			$$ = strTree(FOR, "for",
 					opTree(ASSIGNOP, $3, $2, $4),
@@ -289,6 +318,23 @@ statement
 			end_for($2);
 		}
 	;
+
+unmatched_statement
+	: IF expression {start_if($2);} THEN statement 
+		{
+			mid_if($5);
+			$$ = strTree(IF, "if then-else", $2, $5); 
+			enforce_type(top_scope, $2, BOOL);
+			//end_if($8);
+		}
+	| IF expression {start_if($2);} THEN matched_statement {mid_if($5);} ELSE unmatched_statement
+		{
+			$$ = strTree(IF, "if then-else", $2, $5); 
+			enforce_type(top_scope, $2, BOOL);
+		}
+	;
+
+
 
 variable
 	: id 
@@ -313,7 +359,6 @@ procedure_statement
 		{
 
 			//checkArgs(top_scope, $1, $3);
-			fprintf(stderr, "NAME IS %s", $1->attribute.sval);
 			checkArgs(top_scope, searchScopeAll(top_scope, $1->attribute.sval), $3);
 
 			$$ = opTree(PAROP, "()", $1, $3);
@@ -366,7 +411,11 @@ term
 	;
 
 factor
-	: id
+	: '(' expression ')'
+		{ 	
+			$$ = $2; 
+		}
+	| id
 		{
 			$$ = $1; 
 			checkID(top_scope, $1->attribute.sval); 
@@ -389,10 +438,6 @@ factor
 		{ $$ = $1; }
 	| rnum
 		{ $$ = $1; }
-	| '(' expression ')'
-		{ 	
-			$$ = $2; 
-		}
 	| NOT factor
 		{ $$ = opTree(NOT, "NOT", $2, emptyTree()); }
 		

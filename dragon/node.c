@@ -103,7 +103,7 @@ void updateFunction(scope *top, tree* name, tree* type_ptr, int args) {
 			n->returnType = RNUM;
 			break;
 		default:
-			fprintf(stderr, "Error functions can only return INT or REAL on line %d\n", yylineno);
+			fprintf(stderr, "\nError functions can only return INT or REAL on line %d\n", yylineno);
 			exit(0);
 	}
 
@@ -344,7 +344,6 @@ node *insertScope(scope* top, char* name) {
     top->table[index] = insertNode(tmp, name);
 	 top -> varNum++;
 	 top->table[index]->offset = top->varNum;
-	 fprintf(stderr, "Scope %s update varNum %d off set %d\n", top->name, top->varNum, top->table[index]->offset);
     return top->table[index];
 
 }
@@ -402,22 +401,12 @@ char* typeToString(int token)
 	}
 }
 
-
-
-
-
-
-
-
 void checkID(scope* top, char* name) {
     if(searchScopeAll(top, name) == NULL) {
         char* result = stringCat("Undeclared: ", name);
         yyerror(result);
     }
 }
-
-
-
 
 int hashpjw( char *s )
 {
